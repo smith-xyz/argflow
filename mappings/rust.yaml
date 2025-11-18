@@ -1,0 +1,78 @@
+# Rust Language Mappings for Tree-sitter
+
+language: rust
+tree_sitter_package: tree_sitter_rust
+
+node_types:
+  literal:
+    - integer_literal
+    - float_literal
+    - string_literal
+    - char_literal
+    - boolean_literal
+  
+  identifier:
+    - identifier
+  
+  binary_expression:
+    - binary_expression
+  
+  call_expression:
+    - call_expression
+  
+  assignment:
+    - let_declaration
+    - const_item
+    - assignment_expression
+  
+  function_definition:
+    - function_item
+  
+  selector:
+    - field_expression
+    - scoped_identifier
+  
+  index_expression:
+    - index_expression
+  
+  composite_literal:
+    - array_expression
+    - tuple_expression
+    - struct_expression
+  
+  return_statement:
+    - return_expression
+  
+  if_statement:
+    - if_expression
+  
+  switch_statement:
+    - match_expression
+  
+  case_clause:
+    - match_arm
+
+field_names:
+  assignment:
+    pattern: "pattern"
+    value: "value"
+  
+  binary_expression:
+    left: "left"
+    right: "right"
+    operator: "operator"
+  
+  call_expression:
+    function: "function"
+    arguments: "arguments"
+  
+  selector:
+    value: "value"
+    field: "field"
+  
+  function_definition:
+    name: "name"
+    parameters: "parameters"
+    return_type: "return_type"
+    body: "body"
+

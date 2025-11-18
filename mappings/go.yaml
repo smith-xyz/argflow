@@ -1,0 +1,96 @@
+# Go Language Mappings for Tree-sitter
+#
+# This file maps Tree-sitter node types to semantic categories
+# used by the universal resolution engine.
+
+language: go
+tree_sitter_package: tree_sitter_go
+
+node_types:
+  # Literal values
+  literal:
+    - int_literal
+    - float_literal
+    - imaginary_literal
+    - rune_literal
+    - raw_string_literal
+    - interpreted_string_literal
+  
+  # Variable/constant identifiers
+  identifier:
+    - identifier
+  
+  # Binary expressions (arithmetic, logical, etc.)
+  binary_expression:
+    - binary_expression
+  
+  # Function/method calls
+  call_expression:
+    - call_expression
+  
+  # Variable/constant assignments
+  assignment:
+    - assignment_statement
+    - short_var_declaration
+    - const_declaration
+    - var_declaration
+  
+  # Function definitions
+  function_definition:
+    - function_declaration
+    - method_declaration
+  
+  # Selector expressions (package.Function, obj.Method)
+  selector:
+    - selector_expression
+  
+  # Array/slice indexing
+  index_expression:
+    - index_expression
+    - slice_expression
+  
+  # Composite literals (arrays, structs, maps)
+  composite_literal:
+    - composite_literal
+  
+  # Return statements
+  return_statement:
+    - return_statement
+  
+  # Control flow
+  if_statement:
+    - if_statement
+  
+  switch_statement:
+    - expression_switch_statement
+    - type_switch_statement
+  
+  case_clause:
+    - expression_case
+    - type_case
+
+# Field names used to extract child nodes
+field_names:
+  assignment:
+    left: "left"
+    right: "right"
+  
+  binary_expression:
+    left: "left"
+    right: "right"
+    operator: "operator"
+  
+  call_expression:
+    function: "function"
+    arguments: "arguments"
+  
+  selector:
+    object: "operand"
+    field: "field"
+  
+  function_definition:
+    name: "name"
+    parameters: "parameters"
+    result: "result"
+    body: "body"
+

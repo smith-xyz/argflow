@@ -1,0 +1,78 @@
+# Python Language Mappings for Tree-sitter
+
+language: python
+tree_sitter_package: tree_sitter_python
+
+node_types:
+  literal:
+    - integer
+    - float
+    - string
+    - true
+    - false
+    - none
+  
+  identifier:
+    - identifier
+  
+  binary_expression:
+    - binary_operator
+  
+  call_expression:
+    - call
+  
+  assignment:
+    - assignment
+    - augmented_assignment
+  
+  function_definition:
+    - function_definition
+  
+  selector:
+    - attribute
+  
+  index_expression:
+    - subscript
+  
+  composite_literal:
+    - list
+    - tuple
+    - dictionary
+    - set
+  
+  return_statement:
+    - return_statement
+  
+  if_statement:
+    - if_statement
+  
+  switch_statement:
+    - match_statement  # Python 3.10+
+  
+  case_clause:
+    - case
+
+field_names:
+  assignment:
+    left: "left"
+    right: "right"
+  
+  binary_expression:
+    left: "left"
+    right: "right"
+    operator: "operator"
+  
+  call_expression:
+    function: "function"
+    arguments: "arguments"
+  
+  selector:
+    object: "object"
+    field: "attribute"
+  
+  function_definition:
+    name: "name"
+    parameters: "parameters"
+    return_type: "return_type"
+    body: "body"
+
