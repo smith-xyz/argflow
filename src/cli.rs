@@ -1,6 +1,21 @@
 use anyhow::{Context as AnyhowContext, Result};
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use std::path::{Path, PathBuf};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum OutputFormat {
+    Json,
+    Cbom,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum Language {
+    Go,
+    Python,
+    Rust,
+    Javascript,
+    Typescript,
+}
 
 #[derive(Parser, Debug)]
 #[command(name = "crypto-extractor")]
@@ -12,31 +27,27 @@ pub struct Args {
 
     /// Output format (json, cbom)
     #[arg(short, long, default_value = "json")]
-    pub output: String,
+    pub output: OutputFormat,
 
     /// Language (auto-detected if not specified)
     #[arg(short, long)]
-    pub language: Option<String>,
+    pub language: Option<Language>,
 }
 
 impl Args {
     pub fn validate(&self) -> Result<()> {
         validate_path(&self.path)?;
-        validate_output_format(&self.output)?;
-        if let Some(ref lang) = self.language {
-            validate_language(lang)?;
-        }
         Ok(())
     }
 }
 
-pub fn detect_language(file_path: &Path) -> Option<&'static str> {
+pub fn detect_language(file_path: &Path) -> Option<Language> {
     file_path.extension()?.to_str().and_then(|ext| match ext {
-        "go" => Some("go"),
-        "py" => Some("python"),
-        "rs" => Some("rust"),
-        "js" => Some("javascript"),
-        "ts" => Some("typescript"),
+        "go" => Some(Language::Go),
+        "py" => Some(Language::Python),
+        "rs" => Some(Language::Rust),
+        "js" => Some(Language::Javascript),
+        "ts" => Some(Language::Typescript),
         _ => None,
     })
 }
@@ -58,32 +69,25 @@ pub fn validate_path(path: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn validate_language(lang: &str) -> Result<()> {
-    const SUPPORTED_LANGUAGES: &[&str] = &["go", "python", "rust", "javascript", "typescript"];
-
-    if !SUPPORTED_LANGUAGES.contains(&lang) {
-        anyhow::bail!(
-            "Unsupported language: {}. Supported languages: {}",
-            lang,
-            SUPPORTED_LANGUAGES.join(", ")
-        );
+impl Language {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Language::Go => "go",
+            Language::Python => "python",
+            Language::Rust => "rust",
+            Language::Javascript => "javascript",
+            Language::Typescript => "typescript",
+        }
     }
-
-    Ok(())
 }
 
-pub fn validate_output_format(format: &str) -> Result<()> {
-    const SUPPORTED_FORMATS: &[&str] = &["json", "cbom"];
-
-    if !SUPPORTED_FORMATS.contains(&format) {
-        anyhow::bail!(
-            "Unsupported output format: {}. Supported formats: {}",
-            format,
-            SUPPORTED_FORMATS.join(", ")
-        );
+impl OutputFormat {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            OutputFormat::Json => "json",
+            OutputFormat::Cbom => "cbom",
+        }
     }
-
-    Ok(())
 }
 
 #[cfg(test)]
@@ -95,31 +99,31 @@ mod tests {
     #[test]
     fn test_detect_language_go() {
         let path = Path::new("test.go");
-        assert_eq!(detect_language(path), Some("go"));
+        assert_eq!(detect_language(path), Some(Language::Go));
     }
 
     #[test]
     fn test_detect_language_python() {
         let path = Path::new("test.py");
-        assert_eq!(detect_language(path), Some("python"));
+        assert_eq!(detect_language(path), Some(Language::Python));
     }
 
     #[test]
     fn test_detect_language_rust() {
         let path = Path::new("test.rs");
-        assert_eq!(detect_language(path), Some("rust"));
+        assert_eq!(detect_language(path), Some(Language::Rust));
     }
 
     #[test]
     fn test_detect_language_javascript() {
         let path = Path::new("test.js");
-        assert_eq!(detect_language(path), Some("javascript"));
+        assert_eq!(detect_language(path), Some(Language::Javascript));
     }
 
     #[test]
     fn test_detect_language_typescript() {
         let path = Path::new("test.ts");
-        assert_eq!(detect_language(path), Some("typescript"));
+        assert_eq!(detect_language(path), Some(Language::Typescript));
     }
 
     #[test]
@@ -135,32 +139,18 @@ mod tests {
     }
 
     #[test]
-    fn test_validate_language_valid() {
-        assert!(validate_language("go").is_ok());
-        assert!(validate_language("python").is_ok());
-        assert!(validate_language("rust").is_ok());
-        assert!(validate_language("javascript").is_ok());
-        assert!(validate_language("typescript").is_ok());
+    fn test_language_as_str() {
+        assert_eq!(Language::Go.as_str(), "go");
+        assert_eq!(Language::Python.as_str(), "python");
+        assert_eq!(Language::Rust.as_str(), "rust");
+        assert_eq!(Language::Javascript.as_str(), "javascript");
+        assert_eq!(Language::Typescript.as_str(), "typescript");
     }
 
     #[test]
-    fn test_validate_language_invalid() {
-        assert!(validate_language("java").is_err());
-        assert!(validate_language("cpp").is_err());
-        assert!(validate_language("").is_err());
-    }
-
-    #[test]
-    fn test_validate_output_format_valid() {
-        assert!(validate_output_format("json").is_ok());
-        assert!(validate_output_format("cbom").is_ok());
-    }
-
-    #[test]
-    fn test_validate_output_format_invalid() {
-        assert!(validate_output_format("xml").is_err());
-        assert!(validate_output_format("yaml").is_err());
-        assert!(validate_output_format("").is_err());
+    fn test_output_format_as_str() {
+        assert_eq!(OutputFormat::Json.as_str(), "json");
+        assert_eq!(OutputFormat::Cbom.as_str(), "cbom");
     }
 
     #[test]
@@ -192,8 +182,8 @@ mod tests {
 
         let args = Args {
             path: file_path,
-            output: "json".to_string(),
-            language: Some("go".to_string()),
+            output: OutputFormat::Json,
+            language: Some(Language::Go),
         };
 
         assert!(args.validate().is_ok());
@@ -207,33 +197,18 @@ mod tests {
 
         let args = Args {
             path: file_path,
-            output: "json".to_string(),
-            language: Some("java".to_string()),
+            output: OutputFormat::Json,
+            language: Some(Language::Go),
         };
 
-        assert!(args.validate().is_err());
-    }
-
-    #[test]
-    fn test_args_validate_invalid_output() {
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.go");
-        fs::write(&file_path, "package main").unwrap();
-
-        let args = Args {
-            path: file_path,
-            output: "xml".to_string(),
-            language: None,
-        };
-
-        assert!(args.validate().is_err());
+        assert!(args.validate().is_ok());
     }
 
     #[test]
     fn test_args_validate_invalid_path() {
         let args = Args {
             path: PathBuf::from("/nonexistent/path"),
-            output: "json".to_string(),
+            output: OutputFormat::Json,
             language: None,
         };
 
