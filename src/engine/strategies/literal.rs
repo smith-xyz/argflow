@@ -1,7 +1,4 @@
-use crate::engine::{Context, Strategy, Value};
-/// Literal Strategy - Extract literal values from any language.
-///
-/// Stub implementation - to be fully implemented later.
+use crate::engine::{Context, Strategy, UnresolvedSource, Value};
 use tree_sitter::Node;
 
 pub struct LiteralStrategy;
@@ -24,6 +21,6 @@ impl Strategy for LiteralStrategy {
     }
 
     fn resolve<'a>(&self, _node: &Node<'a>, _ctx: &Context<'a>) -> Value {
-        Value::unextractable("not_implemented")
+        Value::unextractable(UnresolvedSource::NotImplemented)
     }
 }

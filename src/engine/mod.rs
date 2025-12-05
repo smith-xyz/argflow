@@ -1,41 +1,44 @@
-/// Resolution engine for extracting cryptographic parameters.
 pub mod context;
+pub mod file_cache;
+pub mod operators;
+pub mod scope;
+pub mod sources;
 pub mod strategies;
 pub mod value;
 
 pub use context::Context;
+pub use file_cache::{CachedFileEntry, FileCache, FunctionInfo};
+pub use operators::{BinaryOp, UnaryOp};
+pub use scope::{Scope, ScopeEntry};
+pub use sources::UnresolvedSource;
 pub use value::Value;
 
 use strategies::LiteralStrategy;
 use tree_sitter::Node;
 
-/// Main resolver that orchestrates strategy execution
-pub struct Resolver {
-    strategies: Vec<Box<dyn Strategy>>,
-}
-
-/// Trait that all resolution strategies must implement
 pub trait Strategy {
     fn can_handle<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> bool;
     fn resolve<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Value;
 }
 
+pub struct Resolver {
+    strategies: Vec<Box<dyn Strategy>>,
+}
+
 impl Resolver {
-    /// Create a new resolver with default strategies
     pub fn new() -> Self {
         Self {
             strategies: vec![Box::new(LiteralStrategy::new())],
         }
     }
 
-    /// Resolve an expression node to a value
     pub fn resolve<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Value {
         if let Some(cached) = ctx.get_cached_value(node) {
             return cached;
         }
 
         if ctx.has_visited(node) {
-            return Value::unextractable("cycle_detected");
+            return Value::unextractable(UnresolvedSource::CycleDetected);
         }
         ctx.mark_visited(node);
 
@@ -48,7 +51,7 @@ impl Resolver {
                     break;
                 }
             }
-            resolved_value.unwrap_or_else(|| Value::unextractable("not_implemented"))
+            resolved_value.unwrap_or_else(|| Value::unextractable(UnresolvedSource::NotImplemented))
         };
 
         ctx.cache_value(node, result.clone());
