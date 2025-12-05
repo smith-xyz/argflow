@@ -51,14 +51,14 @@ fn query_go_stdlib() -> Result<HashSet<String>, LoadError> {
     let output = Command::new(GO_COMMAND)
         .args(GO_LIST_STD_ARGS)
         .output()
-        .map_err(|e| LoadError::PackageManager(format!("Failed to run 'go list std': {}", e)))?;
+        .map_err(|e| LoadError::PackageManager(format!("Failed to run 'go list std': {e}")))?;
 
     if !output.status.success() {
         return Err(LoadError::PackageManager("go list std failed".to_string()));
     }
 
     let stdout = str::from_utf8(&output.stdout)
-        .map_err(|e| LoadError::PackageManager(format!("Invalid UTF-8 from go list std: {}", e)))?;
+        .map_err(|e| LoadError::PackageManager(format!("Invalid UTF-8 from go list std: {e}")))?;
 
     let mut packages = HashSet::new();
     for line in stdout.lines() {
@@ -103,7 +103,7 @@ impl PackageLoader for GoPackageLoader {
 
         let vendor_path = root_path.join("vendor");
         if vendor_path.exists() && vendor_path.is_dir() {
-            return Ok(self.scan_vendor(&vendor_path)?);
+            return self.scan_vendor(&vendor_path);
         }
 
         self.scan_dependencies_using_go_tooling(root_path)
@@ -169,23 +169,22 @@ impl GoPackageLoader {
     fn get_dependency_packages(&self, project_root: &Path) -> Result<Vec<String>, LoadError> {
         let output = Command::new(GO_COMMAND)
             .args(GO_LIST_DEPS_ARGS)
-            .args(&[GO_LIST_IMPORT_PATH_TEMPLATE, GO_LIST_PACKAGE_PATTERN])
+            .args([GO_LIST_IMPORT_PATH_TEMPLATE, GO_LIST_PACKAGE_PATTERN])
             .current_dir(project_root)
             .output()
-            .map_err(|e| LoadError::PackageManager(format!("Failed to run 'go list': {}", e)))?;
+            .map_err(|e| LoadError::PackageManager(format!("Failed to run 'go list': {e}")))?;
 
         if !output.status.success() {
             let stderr = str::from_utf8(&output.stderr)
                 .unwrap_or("Unknown error")
                 .to_string();
             return Err(LoadError::PackageManager(format!(
-                "go list failed: {}",
-                stderr
+                "go list failed: {stderr}"
             )));
         }
 
         let stdout = str::from_utf8(&output.stdout)
-            .map_err(|e| LoadError::PackageManager(format!("Invalid UTF-8 from go list: {}", e)))?;
+            .map_err(|e| LoadError::PackageManager(format!("Invalid UTF-8 from go list: {e}")))?;
 
         let mut packages: Vec<String> = stdout
             .lines()
@@ -238,13 +237,12 @@ impl GoPackageLoader {
     ) -> Result<Option<Vec<PathBuf>>, LoadError> {
         let output = Command::new(GO_COMMAND)
             .args(GO_LIST_DIR_ARGS)
-            .args(&[GO_LIST_DIR_TEMPLATE, package_path])
+            .args([GO_LIST_DIR_TEMPLATE, package_path])
             .current_dir(project_root)
             .output()
             .map_err(|e| {
                 LoadError::PackageManager(format!(
-                    "Failed to run 'go list' for {}: {}",
-                    package_path, e
+                    "Failed to run 'go list' for {package_path}: {e}"
                 ))
             })?;
 
@@ -253,7 +251,7 @@ impl GoPackageLoader {
         }
 
         let stdout = str::from_utf8(&output.stdout)
-            .map_err(|e| LoadError::PackageManager(format!("Invalid UTF-8 from go list: {}", e)))?;
+            .map_err(|e| LoadError::PackageManager(format!("Invalid UTF-8 from go list: {e}")))?;
 
         let dir_str = stdout.trim();
         if dir_str.is_empty() {
@@ -386,7 +384,7 @@ mod tests {
         let loader = GoPackageLoader;
         let files = loader.load_dependencies(&root).unwrap();
 
-        assert!(files.len() >= 1);
+        assert!(!files.is_empty());
         assert!(files.iter().any(|f| f.to_string_lossy().contains("vendor")));
     }
 
@@ -395,7 +393,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let goroot = temp_dir.path().to_path_buf();
 
-        env::set_var("GOROOT", goroot.to_str().unwrap());
+        unsafe { env::set_var("GOROOT", goroot.to_str().unwrap()) };
 
         let files = vec![
             goroot.join("src/crypto/aes/cipher.go"),
@@ -408,7 +406,7 @@ mod tests {
         assert_eq!(filtered.len(), 1);
         assert!(filtered[0].to_string_lossy().contains("user"));
 
-        env::remove_var("GOROOT");
+        unsafe { env::remove_var("GOROOT") };
     }
 
     #[test]

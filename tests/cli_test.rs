@@ -5,7 +5,7 @@ use tempfile::TempDir;
 #[test]
 fn test_cli_help() {
     let output = Command::new("cargo")
-        .args(&["run", "--", "--help"])
+        .args(["run", "--", "--help"])
         .output()
         .expect("Failed to execute command");
 
@@ -21,7 +21,7 @@ fn test_cli_help() {
 #[test]
 fn test_cli_missing_path() {
     let output = Command::new("cargo")
-        .args(&["run", "--"])
+        .args(["run", "--"])
         .output()
         .expect("Failed to execute command");
 
@@ -33,7 +33,7 @@ fn test_cli_missing_path() {
 #[test]
 fn test_cli_invalid_path() {
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "--",
             "--path",
@@ -54,7 +54,7 @@ fn test_cli_invalid_language() {
     fs::write(&file_path, "package main").unwrap();
 
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "--",
             "--path",
@@ -82,7 +82,7 @@ fn test_cli_invalid_output_format() {
     fs::write(&file_path, "package main").unwrap();
 
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "--",
             "--path",
@@ -110,7 +110,7 @@ fn test_cli_valid_args() {
     fs::write(&file_path, "package main\n\nfunc main() {}").unwrap();
 
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "--",
             "--path",

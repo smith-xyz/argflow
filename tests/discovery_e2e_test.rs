@@ -37,8 +37,7 @@ fn test_discovery_e2e_user_code() {
     for expected in &expected_files {
         assert!(
             file_names.iter().any(|f| f.ends_with(expected)),
-            "Should find {}",
-            expected
+            "Should find {expected}"
         );
     }
 }
@@ -263,8 +262,8 @@ fn test_discovery_e2e_user_and_dependencies() {
     let dep_crypto_count = crypto_files.len() - user_crypto_count;
 
     println!("Complete scan results:");
-    println!("  User code crypto files: {}", user_crypto_count);
-    println!("  Dependency crypto files: {}", dep_crypto_count);
+    println!("  User code crypto files: {user_crypto_count}");
+    println!("  Dependency crypto files: {dep_crypto_count}");
     println!("  Total crypto files: {}", crypto_files.len());
 
     assert!(

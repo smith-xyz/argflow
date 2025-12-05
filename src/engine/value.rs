@@ -2,7 +2,6 @@
 ///
 /// This matches the Value type from the Go implementation but works with
 /// Tree-sitter nodes instead of language-specific AST nodes.
-
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -10,18 +9,18 @@ pub struct Value {
     /// Resolved integer values
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub int_values: Vec<i64>,
-    
+
     /// Resolved string values
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub string_values: Vec<String>,
-    
+
     /// Is this value fully resolved?
     pub is_resolved: bool,
-    
+
     /// Source classification for unresolved values
     #[serde(skip_serializing_if = "String::is_empty")]
     pub source: String,
-    
+
     /// Partially resolved expression (e.g., "iterations + 10000")
     #[serde(skip_serializing_if = "String::is_empty")]
     pub expression: String,
@@ -38,7 +37,7 @@ impl Value {
             expression: String::new(),
         }
     }
-    
+
     /// Create a resolved value with multiple integers
     pub fn resolved_ints(values: Vec<i64>) -> Self {
         Self {
@@ -49,7 +48,7 @@ impl Value {
             expression: String::new(),
         }
     }
-    
+
     /// Create a resolved string value
     pub fn resolved_string(value: String) -> Self {
         Self {
@@ -60,7 +59,7 @@ impl Value {
             expression: String::new(),
         }
     }
-    
+
     /// Create a resolved value with multiple strings
     pub fn resolved_strings(values: Vec<String>) -> Self {
         Self {
@@ -71,7 +70,7 @@ impl Value {
             expression: String::new(),
         }
     }
-    
+
     /// Create an unextractable value with source classification
     pub fn unextractable(source: impl Into<String>) -> Self {
         Self {
@@ -82,7 +81,7 @@ impl Value {
             expression: String::new(),
         }
     }
-    
+
     /// Create a partially resolved expression
     pub fn partial_expression(expression: impl Into<String>) -> Self {
         Self {
@@ -93,7 +92,7 @@ impl Value {
             expression: expression.into(),
         }
     }
-    
+
     /// Format value for JSON output
     pub fn format_for_output(&self) -> serde_json::Value {
         if self.is_resolved {
@@ -110,11 +109,11 @@ impl Value {
                 return serde_json::json!(&self.string_values);
             }
         }
-        
+
         if !self.expression.is_empty() {
             return serde_json::json!(&self.expression);
         }
-        
+
         // Unresolved
         serde_json::json!({
             "value": null,
@@ -126,21 +125,21 @@ impl Value {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_resolved_int() {
         let val = Value::resolved_int(10000);
         assert!(val.is_resolved);
         assert_eq!(val.int_values, vec![10000]);
     }
-    
+
     #[test]
     fn test_resolved_string() {
         let val = Value::resolved_string("sha256".to_string());
         assert!(val.is_resolved);
         assert_eq!(val.string_values, vec!["sha256"]);
     }
-    
+
     #[test]
     fn test_unextractable() {
         let val = Value::unextractable("function_parameter");
@@ -148,4 +147,3 @@ mod tests {
         assert_eq!(val.source, "function_parameter");
     }
 }
-

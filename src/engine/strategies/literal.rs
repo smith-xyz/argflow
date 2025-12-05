@@ -6,6 +6,12 @@ use tree_sitter::Node;
 
 pub struct LiteralStrategy;
 
+impl Default for LiteralStrategy {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LiteralStrategy {
     pub fn new() -> Self {
         Self

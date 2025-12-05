@@ -22,7 +22,7 @@ impl LanguageMapping {
 }
 
 pub fn load_mapping(language: &str) -> Result<LanguageMapping, anyhow::Error> {
-    let mapping_path = format!("mappings/{}.yaml", language);
+    let mapping_path = format!("mappings/{language}.yaml");
     let contents = std::fs::read_to_string(&mapping_path)?;
     let mapping: LanguageMapping = serde_yaml::from_str(&contents)?;
     Ok(mapping)
