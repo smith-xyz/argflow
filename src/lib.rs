@@ -9,7 +9,9 @@ pub mod mappings;
 pub mod scanner;
 
 pub use engine::{Context, Resolver, Value};
-pub use scanner::{CryptoCall, CryptoMatcher, PatternMatcher, ScanResult, Scanner};
+pub use scanner::{
+    extract_imports, CryptoCall, CryptoMatcher, ImportMap, PatternMatcher, ScanResult, Scanner,
+};
 
 #[cfg(test)]
 mod tests {
