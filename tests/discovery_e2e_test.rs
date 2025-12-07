@@ -8,7 +8,8 @@ fn test_discovery_e2e_user_code() {
     let test_app_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
         .join("fixtures")
-        .join("test-app");
+        .join("go")
+        .join("discovery-test-app");
 
     let loader = GoPackageLoader;
     let files = loader
@@ -47,7 +48,8 @@ fn test_discovery_e2e_crypto_filter() {
     let test_app_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
         .join("fixtures")
-        .join("test-app");
+        .join("go")
+        .join("discovery-test-app");
 
     let loader = GoPackageLoader;
     let filter = GoCryptoFilter;
@@ -101,7 +103,8 @@ fn test_discovery_e2e_full_workflow() {
     let test_app_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
         .join("fixtures")
-        .join("test-app");
+        .join("go")
+        .join("discovery-test-app");
 
     let loader = GoPackageLoader;
     let filter = GoCryptoFilter;
@@ -137,7 +140,8 @@ fn test_discovery_e2e_dependencies() {
     let test_app_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
         .join("fixtures")
-        .join("test-app");
+        .join("go")
+        .join("discovery-test-app");
 
     let loader = GoPackageLoader;
     let dep_files = loader
@@ -180,7 +184,8 @@ fn test_discovery_e2e_dependencies_with_filter() {
     let test_app_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
         .join("fixtures")
-        .join("test-app");
+        .join("go")
+        .join("discovery-test-app");
 
     let loader = GoPackageLoader;
     let filter = GoCryptoFilter;
@@ -222,7 +227,8 @@ fn test_discovery_e2e_user_and_dependencies() {
     let test_app_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
         .join("fixtures")
-        .join("test-app");
+        .join("go")
+        .join("discovery-test-app");
 
     let loader = GoPackageLoader;
     let filter = GoCryptoFilter;
@@ -277,7 +283,8 @@ fn test_discovery_e2e_go_jose_imported() {
     let test_app_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
         .join("fixtures")
-        .join("test-app");
+        .join("go")
+        .join("discovery-test-app");
 
     let loader = GoPackageLoader;
     let filter = GoCryptoFilter;

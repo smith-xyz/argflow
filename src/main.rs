@@ -1,9 +1,12 @@
 use anyhow::{Context as AnyhowContext, Result};
 use clap::Parser;
-use crypto_extractor_core::cli;
+use crypto_extractor_core::cli::{self, OutputFormat};
 use crypto_extractor_core::discovery::filter::CryptoFileFilter;
 use crypto_extractor_core::discovery::languages::go::{GoCryptoFilter, GoPackageLoader};
 use crypto_extractor_core::discovery::loader::PackageLoader;
+use crypto_extractor_core::scanner::{CryptoCall, ScanResult, Scanner};
+use serde::Serialize;
+use std::path::Path;
 
 fn main() -> Result<()> {
     let args = cli::Args::parse();
@@ -20,129 +23,231 @@ fn main() -> Result<()> {
         })
         .context("Could not detect language. Please specify --language")?;
 
+    let scanner = Scanner::new();
+
     if args.path.is_dir() {
-        println!("Analyzing {} directory: {:?}", language.as_str(), args.path);
-        println!("Output format: {}", args.output.as_str());
-        println!();
-
-        match language {
-            cli::Language::Go => {
-                let loader = GoPackageLoader;
-                let filter = GoCryptoFilter;
-
-                println!("Discovering files...");
-                let all_files = loader
-                    .load_user_code(&args.path)
-                    .context("Failed to discover user code files")?;
-
-                println!("Found {} files", all_files.len());
-
-                println!("\nFiltering for crypto usage...");
-                let crypto_files: Vec<_> = all_files
-                    .into_iter()
-                    .filter_map(|file| {
-                        filter
-                            .has_crypto_usage(&file)
-                            .ok()
-                            .and_then(|has_crypto| has_crypto.then_some(file))
-                    })
-                    .collect();
-
-                println!("Found {} files with crypto usage", crypto_files.len());
-
-                println!("\nDiscovering dependencies...");
-                let dep_files = loader
-                    .load_dependencies(&args.path)
-                    .context("Failed to discover dependency files")?;
-
-                println!("Found {} dependency files", dep_files.len());
-
-                println!("\nFiltering dependencies for crypto usage...");
-                let crypto_dep_files: Vec<_> = dep_files
-                    .into_iter()
-                    .filter_map(|file| {
-                        filter
-                            .has_crypto_usage(&file)
-                            .ok()
-                            .and_then(|has_crypto| has_crypto.then_some(file))
-                    })
-                    .collect();
-
-                println!(
-                    "Found {} dependency files with crypto usage",
-                    crypto_dep_files.len()
-                );
-
-                println!("\nFiles that would be scanned:");
-                println!("\nUser code ({} files):", crypto_files.len());
-                for file in &crypto_files {
-                    println!("  - {}", file.display());
-                }
-
-                if !crypto_dep_files.is_empty() {
-                    println!("\nDependencies ({} files):", crypto_dep_files.len());
-                    let go_jose_files: Vec<_> = crypto_dep_files
-                        .iter()
-                        .filter(|f| {
-                            f.to_string_lossy().contains("go-jose")
-                                || f.to_string_lossy().contains("go-jose/v3")
-                        })
-                        .collect();
-
-                    if !go_jose_files.is_empty() {
-                        println!("  go-jose files:");
-                        for file in &go_jose_files {
-                            println!("    - {}", file.display());
-                        }
-                    }
-
-                    let other_dep_files: Vec<_> = crypto_dep_files
-                        .iter()
-                        .filter(|f| {
-                            !f.to_string_lossy().contains("go-jose")
-                                && !f.to_string_lossy().contains("go-jose/v3")
-                        })
-                        .take(5)
-                        .collect();
-
-                    if !other_dep_files.is_empty() {
-                        println!("  Other dependencies (showing first 5):");
-                        for file in &other_dep_files {
-                            println!("    - {}", file.display());
-                        }
-                        if crypto_dep_files.len() > other_dep_files.len() + go_jose_files.len() {
-                            println!(
-                                "    ... and {} more",
-                                crypto_dep_files.len()
-                                    - other_dep_files.len()
-                                    - go_jose_files.len()
-                            );
-                        }
-                    }
-                }
-
-                if crypto_files.is_empty() && crypto_dep_files.is_empty() {
-                    println!("\nNo crypto usage detected.");
-                } else {
-                    println!("\nNOTE: Scanner and resolver modules not yet implemented");
-                    println!("   Full parameter extraction will be implemented in Phase 5-8");
-                }
-            }
-            _ => {
-                eprintln!(
-                    "WARNING: Discovery not yet implemented for {}",
-                    language.as_str()
-                );
-                eprintln!("   This will be implemented in future phases");
-            }
-        }
+        scan_directory(&args.path, language, &scanner, args.output)?;
     } else {
-        println!("Analyzing {} file: {:?}", language.as_str(), args.path);
-        println!("Output format: {}", args.output.as_str());
-
-        eprintln!("\nWARNING: Scanner and resolver modules not yet implemented");
-        eprintln!("   This will be implemented in Phase 5-8 of the TODO");
+        scan_file(&args.path, language, &scanner, args.output)?;
     }
 
     Ok(())
+}
+
+fn scan_file(
+    path: &Path,
+    language: cli::Language,
+    scanner: &Scanner,
+    output_format: OutputFormat,
+) -> Result<()> {
+    let source = std::fs::read_to_string(path).context("Failed to read file")?;
+    let tree = parse_source(&source, language)?;
+
+    let result = scanner.scan_tree(
+        &tree,
+        source.as_bytes(),
+        &path.to_string_lossy(),
+        language.as_str(),
+    );
+
+    output_results(&[result], output_format)?;
+    Ok(())
+}
+
+fn scan_directory(
+    path: &Path,
+    language: cli::Language,
+    scanner: &Scanner,
+    output_format: OutputFormat,
+) -> Result<()> {
+    match language {
+        cli::Language::Go => {
+            let loader = GoPackageLoader;
+            let filter = GoCryptoFilter;
+
+            eprintln!("Discovering files...");
+            let all_files = loader
+                .load_user_code(path)
+                .context("Failed to discover user code files")?;
+            eprintln!("Found {} files", all_files.len());
+
+            eprintln!("Filtering for crypto usage...");
+            let crypto_files: Vec<_> = all_files
+                .into_iter()
+                .filter_map(|file| {
+                    filter
+                        .has_crypto_usage(&file)
+                        .ok()
+                        .and_then(|has_crypto| has_crypto.then_some(file))
+                })
+                .collect();
+            eprintln!("Found {} files with crypto usage", crypto_files.len());
+
+            let mut results = Vec::new();
+            for file in &crypto_files {
+                match std::fs::read_to_string(file) {
+                    Ok(source) => {
+                        if let Ok(tree) = parse_source(&source, language) {
+                            let result = scanner.scan_tree(
+                                &tree,
+                                source.as_bytes(),
+                                &file.to_string_lossy(),
+                                language.as_str(),
+                            );
+                            if result.call_count() > 0 {
+                                results.push(result);
+                            }
+                        }
+                    }
+                    Err(e) => eprintln!("Warning: Failed to read {}: {}", file.display(), e),
+                }
+            }
+
+            output_results(&results, output_format)?;
+        }
+        _ => {
+            eprintln!(
+                "WARNING: Discovery not yet implemented for {}",
+                language.as_str()
+            );
+        }
+    }
+
+    Ok(())
+}
+
+fn parse_source(source: &str, language: cli::Language) -> Result<tree_sitter::Tree> {
+    let mut parser = tree_sitter::Parser::new();
+
+    let ts_language = match language {
+        cli::Language::Go => tree_sitter_go::LANGUAGE.into(),
+        cli::Language::Python => tree_sitter_python::LANGUAGE.into(),
+        cli::Language::Rust => tree_sitter_rust::LANGUAGE.into(),
+        cli::Language::Javascript => tree_sitter_javascript::LANGUAGE.into(),
+        cli::Language::Typescript => tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
+    };
+
+    parser
+        .set_language(&ts_language)
+        .context("Failed to set parser language")?;
+
+    parser
+        .parse(source, None)
+        .context("Failed to parse source code")
+}
+
+#[derive(Serialize)]
+struct JsonOutput {
+    files_scanned: usize,
+    total_calls: usize,
+    findings: Vec<Finding>,
+}
+
+#[derive(Serialize)]
+struct Finding {
+    file: String,
+    line: usize,
+    column: usize,
+    function: String,
+    package: Option<String>,
+    full_name: String,
+    arguments: Vec<ArgumentValue>,
+    raw_text: String,
+}
+
+#[derive(Serialize)]
+struct ArgumentValue {
+    index: usize,
+    resolved: bool,
+    value: serde_json::Value,
+}
+
+fn output_results(results: &[ScanResult], format: OutputFormat) -> Result<()> {
+    let total_calls: usize = results.iter().map(|r| r.call_count()).sum();
+
+    let findings: Vec<Finding> = results
+        .iter()
+        .flat_map(|r| r.calls.iter().map(call_to_finding))
+        .collect();
+
+    let output = JsonOutput {
+        files_scanned: results.len(),
+        total_calls,
+        findings,
+    };
+
+    match format {
+        OutputFormat::Json => {
+            println!("{}", serde_json::to_string_pretty(&output)?);
+        }
+        OutputFormat::Cbom => {
+            eprintln!("CBOM output not yet implemented, using JSON");
+            println!("{}", serde_json::to_string_pretty(&output)?);
+        }
+    }
+
+    Ok(())
+}
+
+fn call_to_finding(call: &CryptoCall) -> Finding {
+    let arguments: Vec<ArgumentValue> = call
+        .arguments
+        .iter()
+        .enumerate()
+        .map(|(i, v)| ArgumentValue {
+            index: i,
+            resolved: v.is_resolved,
+            value: value_to_json(v),
+        })
+        .collect();
+
+    Finding {
+        file: call.file_path.clone(),
+        line: call.line,
+        column: call.column,
+        function: call.function_name.clone(),
+        package: call.package.clone(),
+        full_name: call.full_name(),
+        arguments,
+        raw_text: call.raw_text.clone(),
+    }
+}
+
+fn value_to_json(value: &crypto_extractor_core::Value) -> serde_json::Value {
+    if !value.int_values.is_empty() {
+        if value.int_values.len() == 1 {
+            serde_json::Value::Number(value.int_values[0].into())
+        } else {
+            serde_json::Value::Array(
+                value
+                    .int_values
+                    .iter()
+                    .map(|&v| serde_json::Value::Number(v.into()))
+                    .collect(),
+            )
+        }
+    } else if !value.string_values.is_empty() {
+        if value.string_values.len() == 1 {
+            serde_json::Value::String(value.string_values[0].clone())
+        } else {
+            serde_json::Value::Array(
+                value
+                    .string_values
+                    .iter()
+                    .map(|s| serde_json::Value::String(s.clone()))
+                    .collect(),
+            )
+        }
+    } else if !value.expression.is_empty() {
+        serde_json::json!({
+            "expression": value.expression,
+            "partial": true
+        })
+    } else if !value.source.is_empty() {
+        serde_json::json!({
+            "unresolved": value.source
+        })
+    } else {
+        serde_json::Value::Null
+    }
 }

@@ -5,6 +5,8 @@ use std::rc::Rc;
 use tree_sitter::{Node, Tree};
 
 use super::file_cache::{FileCache, FunctionInfo};
+use super::lang_features;
+use super::node_types::{Language, NodeCategory, NodeTypes};
 use super::scope::{Scope, ScopeEntry};
 
 const MAX_CACHE_SIZE: usize = 10_000;
@@ -82,6 +84,16 @@ impl<'a> Context<'a> {
         &self.language
     }
 
+    pub fn node_types(&self) -> Option<NodeTypes> {
+        NodeTypes::from_language_str(&self.language)
+    }
+
+    pub fn is_node_category(&self, kind: &str, category: NodeCategory) -> bool {
+        self.node_types()
+            .map(|nt| nt.is_category(kind, category))
+            .unwrap_or(false)
+    }
+
     pub fn node_mappings(&self) -> &HashMap<String, HashSet<String>> {
         &self.node_mappings
     }
@@ -143,22 +155,8 @@ impl<'a> Context<'a> {
     }
 
     pub fn parse_int_literal(&self, text: &str) -> Option<i64> {
-        let text = text.trim().replace("_", "");
-
-        if text.starts_with("0x") || text.starts_with("0X") {
-            i64::from_str_radix(&text[2..], 16).ok()
-        } else if text.starts_with("0o") || text.starts_with("0O") {
-            i64::from_str_radix(&text[2..], 8).ok()
-        } else if text.starts_with("0b") || text.starts_with("0B") {
-            i64::from_str_radix(&text[2..], 2).ok()
-        } else if text.starts_with("0") && text.len() > 1 && !text.contains('.') {
-            // Go-style octal (0755)
-            i64::from_str_radix(&text[1..], 8)
-                .ok()
-                .or_else(|| text.parse().ok())
-        } else {
-            text.parse().ok()
-        }
+        let lang = Language::parse(&self.language).unwrap_or(Language::Go);
+        lang_features::parse_int_literal(text, lang)
     }
 
     pub fn get_named_children(&self, node: &Node<'a>) -> Vec<Node<'a>> {
