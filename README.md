@@ -1,123 +1,164 @@
-# Crypto Extractor - Rust Implementation
+# Crypto Extractor
 
-## Testing Tree-sitter Setup Complexity
+A static analysis tool that extracts cryptographic parameters from codebases. It identifies crypto API calls and attempts to resolve parameter values through static analysis.
 
-This is a direct port of the Python prototype to Rust to evaluate setup complexity.
-
-## Setup
+## Building
 
 ```bash
-# Build the project
-cargo build
-
-# Run on example files
-cargo run -- --path examples/test.go
-cargo run -- --path examples/test.py
-cargo run -- --path examples/test.rs
+cargo build --release
 ```
 
-## What's Implemented
+The binary will be at `target/release/crypto-extractor`.
 
-✅ **Core types** - Value, Context matching Python prototype  
-✅ **Literal Strategy** - Extract literal values from any language  
-✅ **Resolver** - Strategy orchestration with trait system  
-✅ **CLI** - Parse and analyze files  
-✅ **Multi-language** - Go, Python, Rust, JavaScript support
+## Usage
 
-## Complexity Assessment
+### Basic Usage
 
-### Setup Complexity: **LOW** ✅
+Analyze a single file:
 
-**What was easy:**
+```bash
+crypto-extractor --path path/to/file.go --language go
+```
 
-- Tree-sitter crate installation (just add to Cargo.toml)
-- Language parsers (tree-sitter-go, tree-sitter-python, etc.)
-- Type-safe by default (prevents many bugs)
-- Pattern matching on node kinds
-- Trait system maps perfectly to Strategy pattern
+Analyze a directory:
 
-**What was harder than Python:**
+```bash
+crypto-extractor --path path/to/project --language go
+```
 
-- Lifetime annotations (`Context<'a>`)
-- Mutable vs immutable borrows
-- Can't store intermediate nodes in Value (ownership)
-- More verbose than Python
+### Options
 
-**Overall:** Not as hard as reputation suggests. Tree-sitter in Rust is actually quite clean.
+- `--path <PATH>` - Path to file or directory to analyze (required)
+- `--language <LANGUAGE>` - Language (go, python, rust, javascript, typescript). Auto-detected for single files.
+- `--include-deps` - Include dependencies (vendor/, node_modules/, etc.)
+- `--output <FORMAT>` - Output format: json or cbom (default: json)
+- `-v, --verbose` - Increase verbosity (-v info, -vv debug, -vvv trace)
+- `-q, --quiet` - Suppress all output except errors
 
-## Comparison to Python
+### Examples
 
-### Lines of Code
+Analyze a Go project with dependencies:
 
-| Component        | Python  | Rust    | Difference                       |
-| ---------------- | ------- | ------- | -------------------------------- |
-| Value            | 94      | 110     | +16 lines (more explicit)        |
-| Context          | 76      | 90      | +14 lines (lifetime annotations) |
-| Literal Strategy | 144     | 150     | +6 lines (type conversions)      |
-| Main             | 160     | 180     | +20 lines (error handling)       |
-| **Total**        | **474** | **530** | **+56 lines (12% more)**         |
+```bash
+crypto-extractor --path ./my-project --language go --include-deps
+```
 
-**Verdict**: Rust is ~10-15% more verbose but adds type safety and performance.
+Analyze a Python file:
 
-### Development Speed
+```bash
+crypto-extractor --path src/crypto.py --language python
+```
 
-| Task            | Python  | Rust            |
-| --------------- | ------- | --------------- |
-| Initial setup   | 5 min   | 10 min          |
-| Add dependency  | 1 line  | 1 line          |
-| First compile   | Instant | 2-3 min         |
-| Fix type error  | Runtime | Compile time ✅ |
-| Iteration speed | Fast    | Medium          |
+Save output to file:
 
-**Verdict**: Python faster for prototyping, Rust catches bugs earlier.
+```bash
+crypto-extractor --path ./project --language go > findings.json
+```
 
-### Runtime Performance
+## Output Format
 
-Expected performance (based on similar tools):
+The tool outputs JSON with the following structure:
 
-| Implementation | Parse 1000 files |
-| -------------- | ---------------- |
-| Python         | ~10-15s          |
-| Rust           | ~1-2s            |
+```json
+{
+  "files_scanned": 217,
+  "total_calls": 518,
+  "total_configs": 36,
+  "findings": [
+    {
+      "file": "/path/to/file.go",
+      "line": 11,
+      "column": 10,
+      "function": "Sum",
+      "package": "md5",
+      "import_path": "crypto/md5",
+      "full_name": "md5.Sum",
+      "algorithm": "MD5",
+      "finding_type": "hash",
+      "operation": "hash",
+      "primitive": "hash",
+      "arguments": [
+        {
+          "index": 0,
+          "resolved": false,
+          "value": {
+            "unresolved": "not_implemented"
+          }
+        }
+      ],
+      "raw_text": "md5.Sum([]byte(infraID))"
+    }
+  ],
+  "configs": [
+    {
+      "file": "/path/to/config.go",
+      "line": 42,
+      "column": 5,
+      "struct_type": "TLSConfig",
+      "full_type": "crypto/tls.Config",
+      "package": "tls",
+      "import_path": "crypto/tls",
+      "fields": [
+        {
+          "field_name": "MinVersion",
+          "resolved": true,
+          "value": 771,
+          "classification_key": "tls_version"
+        }
+      ],
+      "raw_text": "&tls.Config{MinVersion: tls.VersionTLS12}"
+    }
+  ]
+}
+```
 
-**Verdict**: ~5-10x faster in Rust for production use.
+### Output Fields
 
-## Recommendation
+- `files_scanned` - Number of files analyzed
+- `total_calls` - Total cryptographic function calls found
+- `total_configs` - Total crypto configuration structs found
+- `findings` - Array of cryptographic function call findings
+- `configs` - Array of crypto configuration struct findings
 
-**Start with Rust** if:
+### Finding Fields
 
-- ✅ You want production-ready from day one
-- ✅ Performance matters (CI/CD, large codebases)
-- ✅ You value type safety and maintainability
-- ✅ You're comfortable with 10-15% more code
+- `file` - Full path to the source file
+- `line` - Line number where the call occurs
+- `column` - Column number where the call occurs
+- `function` - Function name
+- `package` - Package name
+- `import_path` - Full import path
+- `algorithm` - Cryptographic algorithm identified
+- `finding_type` - Type of finding (hash, cipher, kdf, etc.)
+- `operation` - Operation type (hash, encrypt, decrypt, etc.)
+- `primitive` - Cryptographic primitive
+- `arguments` - Array of function arguments with resolution status
+- `raw_text` - Original source code text
 
-**Use Python** if:
+### Argument Resolution
 
-- ⚠️ You need to validate concept quickly (we already have Go proof)
-- ⚠️ You want to experiment with different approaches
-- ⚠️ Development speed is more important than runtime speed
+Arguments can be:
 
-## My Assessment
+- Resolved: `{"resolved": true, "value": 2048}` - Actual value extracted
+- Unresolved: `{"resolved": false, "value": {"unresolved": "reason"}}` - Could not resolve
+- Partial: `{"resolved": false, "value": {"expression": "BASE + 1000", "partial": true}}` - Expression extracted
 
-Tree-sitter in Rust is **not significantly harder** than Python:
+## Supported Languages
 
-- Setup is straightforward
-- Documentation is good
-- Trait system is elegant for strategies
-- Performance will be much better
+- Go
+- Python
+- Rust
+- JavaScript/TypeScript
 
-**Verdict: Go with Rust** ✅
+## How It Works
 
-The extra 10-15% code is worth it for:
+The tool uses Tree-sitter to parse source code into ASTs, then applies resolution strategies to extract cryptographic parameters:
 
-- Type safety (catches bugs at compile time)
-- Performance (5-10x faster)
-- No rewrite needed later
-- Better for distribution (single binary)
+1. Literal values - Direct constants
+2. Variable resolution - Finds variable declarations
+3. Function calls - Traces return values
+4. Binary expressions - Evaluates arithmetic operations
+5. Field access - Resolves struct/object fields
+6. Array/index access - Resolves array and map lookups
 
-## Next Steps
-
-1. Run `cargo build` to see if it compiles
-2. Test on example files
-3. If it works, this proves Rust setup is feasible
-4. Continue building out strategies in Rust
+The tool uses API mappings to identify cryptographic functions and classify them by algorithm and operation type.
