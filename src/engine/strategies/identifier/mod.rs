@@ -1,6 +1,8 @@
 use crate::engine::{Context, Language, NodeCategory, Resolver, Strategy, UnresolvedSource, Value};
 use tree_sitter::Node;
 
+mod languages;
+
 pub struct IdentifierStrategy {
     resolver: Option<Resolver>,
 }
@@ -46,7 +48,9 @@ impl IdentifierStrategy {
         let search_node = scope_node.child_by_field_name("body").unwrap_or(scope_node);
 
         match lang {
-            Language::Go => self.find_go_declaration(name, search_node, use_position, ctx),
+            Language::Go => {
+                languages::go_find_declaration(self, name, search_node, use_position, ctx)
+            }
             Language::Python => self.find_python_declaration(name, search_node, use_position, ctx),
             Language::Rust => self.find_rust_declaration(name, search_node, use_position, ctx),
             Language::JavaScript | Language::TypeScript => {
@@ -57,195 +61,6 @@ impl IdentifierStrategy {
             }
             Language::Java => self.find_java_declaration(name, search_node, use_position, ctx),
         }
-    }
-
-    fn find_go_declaration<'a>(
-        &self,
-        name: &str,
-        scope_node: Node<'a>,
-        use_position: usize,
-        ctx: &Context<'a>,
-    ) -> Option<Node<'a>> {
-        let mut cursor = scope_node.walk();
-        self.search_go_declarations(&mut cursor, scope_node, name, use_position, ctx)
-    }
-
-    fn search_go_declarations<'a>(
-        &self,
-        cursor: &mut tree_sitter::TreeCursor<'a>,
-        node: Node<'a>,
-        name: &str,
-        use_position: usize,
-        ctx: &Context<'a>,
-    ) -> Option<Node<'a>> {
-        let mut result: Option<Node<'a>> = None;
-
-        for child in node.children(cursor) {
-            if child.start_byte() >= use_position {
-                continue;
-            }
-
-            match child.kind() {
-                "short_var_declaration" => {
-                    if let Some(value) = self.extract_go_short_var(child, name, ctx) {
-                        result = Some(value);
-                    }
-                }
-                "var_declaration" => {
-                    if let Some(value) = self.extract_go_var_decl(child, name, ctx) {
-                        result = Some(value);
-                    }
-                }
-                "const_declaration" => {
-                    if let Some(value) = self.extract_go_const_decl(child, name, ctx) {
-                        result = Some(value);
-                    }
-                }
-                "assignment_statement" => {
-                    if let Some(value) = self.extract_go_assignment(child, name, ctx) {
-                        result = Some(value);
-                    }
-                }
-                "block" | "function_body" | "statement_list" => {
-                    let mut inner_cursor = child.walk();
-                    if let Some(found) = self.search_go_declarations(
-                        &mut inner_cursor,
-                        child,
-                        name,
-                        use_position,
-                        ctx,
-                    ) {
-                        result = Some(found);
-                    }
-                }
-                _ => {}
-            }
-        }
-        result
-    }
-
-    fn extract_go_short_var<'a>(
-        &self,
-        node: Node<'a>,
-        name: &str,
-        ctx: &Context<'a>,
-    ) -> Option<Node<'a>> {
-        let left = node.child_by_field_name("left")?;
-        let right = node.child_by_field_name("right")?;
-
-        let mut cursor = left.walk();
-        let names: Vec<_> = left
-            .children(&mut cursor)
-            .filter(|c| c.is_named())
-            .collect();
-
-        for (i, name_node) in names.iter().enumerate() {
-            if ctx.get_node_text(name_node) == name {
-                let mut value_cursor = right.walk();
-                let values: Vec<_> = right
-                    .children(&mut value_cursor)
-                    .filter(|c| c.is_named())
-                    .collect();
-                return values.get(i).copied();
-            }
-        }
-        None
-    }
-
-    fn extract_go_var_decl<'a>(
-        &self,
-        node: Node<'a>,
-        name: &str,
-        ctx: &Context<'a>,
-    ) -> Option<Node<'a>> {
-        let mut cursor = node.walk();
-        for child in node.children(&mut cursor) {
-            if child.kind() == "var_spec" {
-                if let Some(found) = self.extract_go_spec(child, name, ctx) {
-                    return Some(found);
-                }
-            }
-        }
-        None
-    }
-
-    fn extract_go_const_decl<'a>(
-        &self,
-        node: Node<'a>,
-        name: &str,
-        ctx: &Context<'a>,
-    ) -> Option<Node<'a>> {
-        let mut cursor = node.walk();
-        for child in node.children(&mut cursor) {
-            if child.kind() == "const_spec" {
-                if let Some(found) = self.extract_go_spec(child, name, ctx) {
-                    return Some(found);
-                }
-            }
-        }
-        None
-    }
-
-    fn extract_go_spec<'a>(
-        &self,
-        spec: Node<'a>,
-        name: &str,
-        ctx: &Context<'a>,
-    ) -> Option<Node<'a>> {
-        let mut names: Vec<Node> = Vec::new();
-        let mut values: Vec<Node> = Vec::new();
-
-        let mut cursor = spec.walk();
-        for child in spec.children(&mut cursor) {
-            if child.kind() == "identifier" {
-                names.push(child);
-            }
-        }
-
-        if let Some(value_node) = spec.child_by_field_name("value") {
-            let mut value_cursor = value_node.walk();
-            for child in value_node.children(&mut value_cursor) {
-                if child.is_named() {
-                    values.push(child);
-                }
-            }
-        }
-
-        for (i, name_node) in names.iter().enumerate() {
-            if ctx.get_node_text(name_node) == name {
-                return values.get(i).copied();
-            }
-        }
-
-        None
-    }
-
-    fn extract_go_assignment<'a>(
-        &self,
-        node: Node<'a>,
-        name: &str,
-        ctx: &Context<'a>,
-    ) -> Option<Node<'a>> {
-        let left = node.child_by_field_name("left")?;
-        let right = node.child_by_field_name("right")?;
-
-        let mut cursor = left.walk();
-        let names: Vec<_> = left
-            .children(&mut cursor)
-            .filter(|c| c.is_named())
-            .collect();
-
-        for (i, name_node) in names.iter().enumerate() {
-            if ctx.get_node_text(name_node) == name {
-                let mut value_cursor = right.walk();
-                let values: Vec<_> = right
-                    .children(&mut value_cursor)
-                    .filter(|c| c.is_named())
-                    .collect();
-                return values.get(i).copied();
-            }
-        }
-        None
     }
 
     fn find_python_declaration<'a>(
@@ -646,7 +461,9 @@ impl IdentifierStrategy {
         let lang = ctx.node_types()?.language();
 
         match lang {
-            Language::Go => self.find_go_file_level_const(name, root, use_position, ctx),
+            Language::Go => {
+                languages::go_find_file_level_const(self, name, root, use_position, ctx)
+            }
             Language::Python => self.find_python_file_level_const(name, root, use_position, ctx),
             Language::Rust => self.find_rust_file_level_const(name, root, use_position, ctx),
             Language::JavaScript | Language::TypeScript => {
@@ -654,36 +471,6 @@ impl IdentifierStrategy {
             }
             _ => None,
         }
-    }
-
-    fn find_go_file_level_const<'a>(
-        &self,
-        name: &str,
-        root: Node<'a>,
-        use_position: usize,
-        ctx: &Context<'a>,
-    ) -> Option<Node<'a>> {
-        let mut cursor = root.walk();
-        for child in root.children(&mut cursor) {
-            if child.start_byte() >= use_position {
-                continue;
-            }
-
-            match child.kind() {
-                "const_declaration" => {
-                    if let Some(value) = self.extract_go_const_decl(child, name, ctx) {
-                        return Some(value);
-                    }
-                }
-                "var_declaration" => {
-                    if let Some(value) = self.extract_go_var_decl(child, name, ctx) {
-                        return Some(value);
-                    }
-                }
-                _ => {}
-            }
-        }
-        None
     }
 
     fn find_python_file_level_const<'a>(

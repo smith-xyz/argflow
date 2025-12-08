@@ -1,6 +1,8 @@
 use crate::engine::{Context, Language, NodeCategory, Strategy, UnresolvedSource, Value};
 use tree_sitter::Node;
 
+mod languages;
+
 pub struct CallStrategy;
 
 impl Default for CallStrategy {
@@ -149,94 +151,18 @@ impl CallStrategy {
         let lang = ctx.node_types()?.language();
 
         match lang {
-            Language::Go => self.extract_go_return(return_node, ctx),
-            Language::Python => self.extract_python_return(return_node, ctx),
-            Language::Rust => self.extract_rust_return(return_node, ctx),
-            Language::JavaScript | Language::TypeScript => self.extract_js_return(return_node, ctx),
-            Language::C | Language::Cpp => self.extract_c_return(return_node, ctx),
-            Language::Java => self.extract_java_return(return_node, ctx),
-        }
-    }
-
-    fn extract_go_return<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Option<Value> {
-        let mut cursor = node.walk();
-        let children: Vec<_> = node
-            .children(&mut cursor)
-            .filter(|c| c.is_named())
-            .collect();
-
-        if children.is_empty() {
-            return None;
-        }
-
-        if children.len() == 1 {
-            let child = children[0];
-            if child.kind() == "expression_list" {
-                return Some(self.resolve_expression_list(&child, ctx));
+            Language::Go => languages::go_extract_return(self, return_node, ctx),
+            Language::Python => languages::python_extract_return(self, return_node, ctx),
+            Language::Rust => languages::rust_extract_return(self, return_node, ctx),
+            Language::JavaScript | Language::TypeScript => {
+                languages::js_extract_return(self, return_node, ctx)
             }
-            return Some(self.resolve_value_node(child, ctx));
+            Language::C | Language::Cpp => languages::c_extract_return(self, return_node, ctx),
+            Language::Java => languages::java_extract_return(self, return_node, ctx),
         }
-
-        Some(self.resolve_multiple_values(&children, ctx))
     }
 
-    fn extract_python_return<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Option<Value> {
-        let mut cursor = node.walk();
-        for child in node.children(&mut cursor) {
-            if child.is_named() && child.kind() != "comment" {
-                if child.kind() == "tuple" || child.kind() == "expression_list" {
-                    return Some(self.resolve_tuple(&child, ctx));
-                }
-                return Some(self.resolve_value_node(child, ctx));
-            }
-        }
-        None
-    }
-
-    fn extract_rust_return<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Option<Value> {
-        let mut cursor = node.walk();
-        for child in node.children(&mut cursor) {
-            if child.is_named() {
-                if child.kind() == "tuple_expression" {
-                    return Some(self.resolve_tuple(&child, ctx));
-                }
-                return Some(self.resolve_value_node(child, ctx));
-            }
-        }
-        None
-    }
-
-    fn extract_js_return<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Option<Value> {
-        let mut cursor = node.walk();
-        for child in node.children(&mut cursor) {
-            if child.is_named() {
-                return Some(self.resolve_value_node(child, ctx));
-            }
-        }
-        None
-    }
-
-    fn extract_c_return<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Option<Value> {
-        let mut cursor = node.walk();
-        for child in node.children(&mut cursor) {
-            if child.is_named() {
-                return Some(self.resolve_value_node(child, ctx));
-            }
-        }
-        None
-    }
-
-    fn extract_java_return<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Option<Value> {
-        let mut cursor = node.walk();
-        for child in node.children(&mut cursor) {
-            if child.is_named() {
-                return Some(self.resolve_value_node(child, ctx));
-            }
-        }
-        None
-    }
-
-    fn resolve_expression_list<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Value {
+    pub(crate) fn resolve_expression_list<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Value {
         let mut cursor = node.walk();
         let children: Vec<_> = node
             .children(&mut cursor)
@@ -245,7 +171,7 @@ impl CallStrategy {
         self.resolve_multiple_values(&children, ctx)
     }
 
-    fn resolve_tuple<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Value {
+    pub(crate) fn resolve_tuple<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Value {
         let mut cursor = node.walk();
         let children: Vec<_> = node
             .children(&mut cursor)
@@ -254,7 +180,11 @@ impl CallStrategy {
         self.resolve_multiple_values(&children, ctx)
     }
 
-    fn resolve_multiple_values<'a>(&self, nodes: &[Node<'a>], ctx: &Context<'a>) -> Value {
+    pub(crate) fn resolve_multiple_values<'a>(
+        &self,
+        nodes: &[Node<'a>],
+        ctx: &Context<'a>,
+    ) -> Value {
         let mut all_ints = Vec::new();
         let mut all_strings = Vec::new();
         let mut all_resolved = true;
@@ -283,7 +213,7 @@ impl CallStrategy {
         }
     }
 
-    fn resolve_value_node<'a>(&self, node: Node<'a>, ctx: &Context<'a>) -> Value {
+    pub(crate) fn resolve_value_node<'a>(&self, node: Node<'a>, ctx: &Context<'a>) -> Value {
         let kind = node.kind();
 
         if ctx.is_node_category(kind, NodeCategory::IntegerLiteral) {

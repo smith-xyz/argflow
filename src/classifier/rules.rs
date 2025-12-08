@@ -108,6 +108,7 @@ impl RulesClassifier {
         let file: MappingsFile = serde_json::from_str(&content)
             .map_err(|e| ClassifierError::rules_parse_error(path, e.to_string()))?;
 
+        // Parse nested mappings format: { "import_path": { "function": "key" } }
         let mut count = 0;
         for (import_path, functions) in file.mappings {
             let import_lower = import_path.to_lowercase();

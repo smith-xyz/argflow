@@ -1,6 +1,8 @@
 use crate::engine::{Context, Language, NodeCategory, Resolver, Strategy, UnresolvedSource, Value};
 use tree_sitter::Node;
 
+mod languages;
+
 pub struct SelectorStrategy {
     resolver: Option<Resolver>,
 }
@@ -30,81 +32,13 @@ impl SelectorStrategy {
         let lang = ctx.node_types()?.language();
 
         match lang {
-            Language::Go => self.get_go_selector(node, ctx),
-            Language::Python => self.get_python_selector(node, ctx),
-            Language::Rust => self.get_rust_selector(node, ctx),
-            Language::JavaScript | Language::TypeScript => self.get_js_selector(node, ctx),
-            Language::C | Language::Cpp => self.get_c_selector(node, ctx),
-            Language::Java => self.get_java_selector(node, ctx),
+            Language::Go => languages::go_get_selector(node, ctx),
+            Language::Python => languages::python_get_selector(node, ctx),
+            Language::Rust => languages::rust_get_selector(node, ctx),
+            Language::JavaScript | Language::TypeScript => languages::js_get_selector(node, ctx),
+            Language::C | Language::Cpp => languages::c_get_selector(node, ctx),
+            Language::Java => languages::java_get_selector(node, ctx),
         }
-    }
-
-    fn get_go_selector<'a>(
-        &self,
-        node: &Node<'a>,
-        ctx: &Context<'a>,
-    ) -> Option<(Node<'a>, String)> {
-        let operand = node.child_by_field_name("operand")?;
-        let field = node.child_by_field_name("field")?;
-        Some((operand, ctx.get_node_text(&field)))
-    }
-
-    fn get_python_selector<'a>(
-        &self,
-        node: &Node<'a>,
-        ctx: &Context<'a>,
-    ) -> Option<(Node<'a>, String)> {
-        let object = node.child_by_field_name("object")?;
-        let attribute = node.child_by_field_name("attribute")?;
-        Some((object, ctx.get_node_text(&attribute)))
-    }
-
-    fn get_rust_selector<'a>(
-        &self,
-        node: &Node<'a>,
-        ctx: &Context<'a>,
-    ) -> Option<(Node<'a>, String)> {
-        let kind = node.kind();
-
-        if kind == "field_expression" {
-            let value = node.child_by_field_name("value")?;
-            let field = node.child_by_field_name("field")?;
-            return Some((value, ctx.get_node_text(&field)));
-        }
-
-        if kind == "scoped_identifier" {
-            let path = node.child_by_field_name("path")?;
-            let name = node.child_by_field_name("name")?;
-            return Some((path, ctx.get_node_text(&name)));
-        }
-
-        None
-    }
-
-    fn get_js_selector<'a>(
-        &self,
-        node: &Node<'a>,
-        ctx: &Context<'a>,
-    ) -> Option<(Node<'a>, String)> {
-        let object = node.child_by_field_name("object")?;
-        let property = node.child_by_field_name("property")?;
-        Some((object, ctx.get_node_text(&property)))
-    }
-
-    fn get_c_selector<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Option<(Node<'a>, String)> {
-        let argument = node.child_by_field_name("argument")?;
-        let field = node.child_by_field_name("field")?;
-        Some((argument, ctx.get_node_text(&field)))
-    }
-
-    fn get_java_selector<'a>(
-        &self,
-        node: &Node<'a>,
-        ctx: &Context<'a>,
-    ) -> Option<(Node<'a>, String)> {
-        let object = node.child_by_field_name("object")?;
-        let field = node.child_by_field_name("field")?;
-        Some((object, ctx.get_node_text(&field)))
     }
 
     fn is_package_identifier<'a>(&self, object: &Node<'a>, ctx: &Context<'a>) -> bool {

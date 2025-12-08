@@ -1,6 +1,8 @@
 use crate::engine::{Context, Language, NodeCategory, Strategy, UnresolvedSource, Value};
 use tree_sitter::Node;
 
+mod languages;
+
 pub struct CompositeStrategy;
 
 impl Default for CompositeStrategy {
@@ -26,12 +28,14 @@ impl CompositeStrategy {
         let lang = ctx.node_types().map(|nt| nt.language());
 
         match lang {
-            Some(Language::Go) => self.resolve_go_array(node, ctx),
-            Some(Language::Python) => self.resolve_python_array(node, ctx),
-            Some(Language::Rust) => self.resolve_rust_array(node, ctx),
-            Some(Language::JavaScript | Language::TypeScript) => self.resolve_js_array(node, ctx),
-            Some(Language::C | Language::Cpp) => self.resolve_c_array(node, ctx),
-            Some(Language::Java) => self.resolve_java_array(node, ctx),
+            Some(Language::Go) => languages::go_resolve_array(self, node, ctx),
+            Some(Language::Python) => languages::python_resolve_array(self, node, ctx),
+            Some(Language::Rust) => languages::rust_resolve_array(self, node, ctx),
+            Some(Language::JavaScript | Language::TypeScript) => {
+                languages::js_resolve_array(self, node, ctx)
+            }
+            Some(Language::C | Language::Cpp) => languages::c_resolve_array(self, node, ctx),
+            Some(Language::Java) => languages::java_resolve_array(self, node, ctx),
             None => Value::unextractable(UnresolvedSource::Unknown),
         }
     }
@@ -40,90 +44,19 @@ impl CompositeStrategy {
         let lang = ctx.node_types().map(|nt| nt.language());
 
         match lang {
-            Some(Language::Go) => self.resolve_go_struct(node, ctx),
-            Some(Language::Python) => self.resolve_python_dict(node, ctx),
-            Some(Language::Rust) => self.resolve_rust_struct(node, ctx),
-            Some(Language::JavaScript | Language::TypeScript) => self.resolve_js_object(node, ctx),
-            Some(Language::C | Language::Cpp) => self.resolve_c_initializer(node, ctx),
-            Some(Language::Java) => self.resolve_java_object(node, ctx),
+            Some(Language::Go) => languages::go_resolve_struct(self, node, ctx),
+            Some(Language::Python) => languages::python_resolve_dict(self, node, ctx),
+            Some(Language::Rust) => languages::rust_resolve_struct(self, node, ctx),
+            Some(Language::JavaScript | Language::TypeScript) => {
+                languages::js_resolve_object(self, node, ctx)
+            }
+            Some(Language::C | Language::Cpp) => languages::c_resolve_initializer(self, node, ctx),
+            Some(Language::Java) => languages::java_resolve_object(self, node, ctx),
             None => Value::unextractable(UnresolvedSource::Unknown),
         }
     }
 
-    fn resolve_go_array<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Value {
-        if let Some(body) = node.child_by_field_name("body") {
-            return self.collect_array_elements(&body, ctx);
-        }
-
-        let mut cursor = node.walk();
-        for child in node.children(&mut cursor) {
-            if child.kind() == "literal_value" {
-                return self.collect_array_elements(&child, ctx);
-            }
-        }
-
-        Value::unextractable(UnresolvedSource::Unknown)
-    }
-
-    fn resolve_go_struct<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Value {
-        if let Some(body) = node.child_by_field_name("body") {
-            return self.collect_struct_fields(&body, ctx);
-        }
-
-        let mut cursor = node.walk();
-        for child in node.children(&mut cursor) {
-            if child.kind() == "literal_value" {
-                return self.collect_struct_fields(&child, ctx);
-            }
-        }
-
-        Value::unextractable(UnresolvedSource::Unknown)
-    }
-
-    fn resolve_python_array<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Value {
-        self.collect_array_elements(node, ctx)
-    }
-
-    fn resolve_python_dict<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Value {
-        self.collect_dict_entries(node, ctx)
-    }
-
-    fn resolve_rust_array<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Value {
-        self.collect_array_elements(node, ctx)
-    }
-
-    fn resolve_rust_struct<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Value {
-        if let Some(body) = node.child_by_field_name("body") {
-            return self.collect_struct_fields(&body, ctx);
-        }
-        self.collect_struct_fields(node, ctx)
-    }
-
-    fn resolve_js_array<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Value {
-        self.collect_array_elements(node, ctx)
-    }
-
-    fn resolve_js_object<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Value {
-        self.collect_object_properties(node, ctx)
-    }
-
-    fn resolve_c_array<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Value {
-        self.collect_array_elements(node, ctx)
-    }
-
-    fn resolve_c_initializer<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Value {
-        self.collect_c_designated_initializers(node, ctx)
-    }
-
-    fn resolve_java_array<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Value {
-        self.collect_array_elements(node, ctx)
-    }
-
-    fn resolve_java_object<'a>(&self, _node: &Node<'a>, _ctx: &Context<'a>) -> Value {
-        Value::unextractable(UnresolvedSource::NotImplemented)
-    }
-
-    fn collect_array_elements<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Value {
+    pub(crate) fn collect_array_elements<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Value {
         let mut int_values = Vec::new();
         let mut string_values = Vec::new();
         let mut all_resolved = true;
@@ -179,7 +112,7 @@ impl CompositeStrategy {
         }
     }
 
-    fn collect_struct_fields<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Value {
+    pub(crate) fn collect_struct_fields<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Value {
         let mut fields: Vec<(String, Value)> = Vec::new();
         let mut all_resolved = true;
 
@@ -230,7 +163,7 @@ impl CompositeStrategy {
         }
     }
 
-    fn collect_dict_entries<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Value {
+    pub(crate) fn collect_dict_entries<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Value {
         let mut entries: Vec<(String, Value)> = Vec::new();
         let mut all_resolved = true;
 
@@ -271,7 +204,11 @@ impl CompositeStrategy {
         }
     }
 
-    fn collect_object_properties<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Value {
+    pub(crate) fn collect_object_properties<'a>(
+        &self,
+        node: &Node<'a>,
+        ctx: &Context<'a>,
+    ) -> Value {
         let mut properties: Vec<(String, Value)> = Vec::new();
         let mut all_resolved = true;
 
@@ -307,7 +244,11 @@ impl CompositeStrategy {
         }
     }
 
-    fn collect_c_designated_initializers<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Value {
+    pub(crate) fn collect_c_designated_initializers<'a>(
+        &self,
+        node: &Node<'a>,
+        ctx: &Context<'a>,
+    ) -> Value {
         let mut values_found = Vec::new();
         let mut all_resolved = true;
 
@@ -342,7 +283,7 @@ impl CompositeStrategy {
         }
     }
 
-    fn is_keyed_element(&self, node: &Node) -> bool {
+    pub(crate) fn is_keyed_element(&self, node: &Node) -> bool {
         // Note: literal_element is NOT a keyed element - it's a wrapper around values
         // In Go arrays: literal_value -> literal_element -> int_literal
         // In Go structs: literal_value -> keyed_element -> literal_element (key) + literal_element (value)
@@ -355,7 +296,7 @@ impl CompositeStrategy {
         )
     }
 
-    fn extract_keyed_element<'a>(
+    pub(crate) fn extract_keyed_element<'a>(
         &self,
         node: &Node<'a>,
         ctx: &Context<'a>,
@@ -398,7 +339,7 @@ impl CompositeStrategy {
         }
     }
 
-    fn extract_js_property<'a>(
+    pub(crate) fn extract_js_property<'a>(
         &self,
         node: &Node<'a>,
         ctx: &Context<'a>,
@@ -412,7 +353,7 @@ impl CompositeStrategy {
         Some((key_clean, self.resolve_element(&value_node, ctx)))
     }
 
-    fn resolve_element<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Value {
+    pub(crate) fn resolve_element<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Value {
         let kind = node.kind();
 
         // Go wraps array elements in literal_element - unwrap to get the actual value

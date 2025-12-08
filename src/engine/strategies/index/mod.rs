@@ -1,6 +1,8 @@
 use crate::engine::{Context, Language, NodeCategory, Strategy, UnresolvedSource, Value};
 use tree_sitter::Node;
 
+mod languages;
+
 pub struct IndexStrategy;
 
 impl Default for IndexStrategy {
@@ -22,58 +24,13 @@ impl IndexStrategy {
         let lang = ctx.node_types()?.language();
 
         match lang {
-            Language::Go => self.get_go_object_index(node),
-            Language::Python => self.get_python_object_index(node),
-            Language::Rust => self.get_rust_object_index(node),
-            Language::JavaScript | Language::TypeScript => self.get_js_object_index(node),
-            Language::C | Language::Cpp => self.get_c_object_index(node),
-            Language::Java => self.get_java_object_index(node),
+            Language::Go => languages::go_get_object_index(node),
+            Language::Python => languages::python_get_object_index(node),
+            Language::Rust => languages::rust_get_object_index(node),
+            Language::JavaScript | Language::TypeScript => languages::js_get_object_index(node),
+            Language::C | Language::Cpp => languages::c_get_object_index(node),
+            Language::Java => languages::java_get_object_index(node),
         }
-    }
-
-    fn get_go_object_index<'a>(&self, node: &Node<'a>) -> Option<(Node<'a>, Node<'a>)> {
-        let operand = node.child_by_field_name("operand")?;
-        let index = node.child_by_field_name("index")?;
-        Some((operand, index))
-    }
-
-    fn get_python_object_index<'a>(&self, node: &Node<'a>) -> Option<(Node<'a>, Node<'a>)> {
-        let value = node.child_by_field_name("value")?;
-        let subscript = node.child_by_field_name("subscript")?;
-        Some((value, subscript))
-    }
-
-    fn get_rust_object_index<'a>(&self, node: &Node<'a>) -> Option<(Node<'a>, Node<'a>)> {
-        let mut named_children = Vec::new();
-        let mut cursor = node.walk();
-        for child in node.children(&mut cursor) {
-            if child.is_named() {
-                named_children.push(child);
-            }
-        }
-        if named_children.len() >= 2 {
-            Some((named_children[0], named_children[1]))
-        } else {
-            None
-        }
-    }
-
-    fn get_js_object_index<'a>(&self, node: &Node<'a>) -> Option<(Node<'a>, Node<'a>)> {
-        let object = node.child_by_field_name("object")?;
-        let index = node.child_by_field_name("index")?;
-        Some((object, index))
-    }
-
-    fn get_c_object_index<'a>(&self, node: &Node<'a>) -> Option<(Node<'a>, Node<'a>)> {
-        let argument = node.child_by_field_name("argument")?;
-        let index = node.child_by_field_name("index")?;
-        Some((argument, index))
-    }
-
-    fn get_java_object_index<'a>(&self, node: &Node<'a>) -> Option<(Node<'a>, Node<'a>)> {
-        let array = node.child_by_field_name("array")?;
-        let index = node.child_by_field_name("index")?;
-        Some((array, index))
     }
 
     fn resolve_index_value<'a>(index_node: &Node<'a>, ctx: &Context<'a>) -> Option<i64> {

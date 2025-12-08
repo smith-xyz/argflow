@@ -1,5 +1,7 @@
-use crate::engine::{Context, Language, NodeCategory, Strategy, UnaryOp, UnresolvedSource, Value};
+use crate::engine::{Context, Language, NodeCategory, Strategy, UnresolvedSource, Value};
 use tree_sitter::Node;
+
+mod languages;
 
 pub struct UnaryStrategy;
 
@@ -22,98 +24,13 @@ impl UnaryStrategy {
         let lang = ctx.node_types()?.language();
 
         match lang {
-            Language::Go => self.get_go_unary(node, ctx),
-            Language::Python => self.get_python_unary(node, ctx),
-            Language::Rust => self.get_rust_unary(node, ctx),
-            Language::JavaScript | Language::TypeScript => self.get_js_unary(node, ctx),
-            Language::C | Language::Cpp => self.get_c_unary(node, ctx),
-            Language::Java => self.get_java_unary(node, ctx),
+            Language::Go => languages::go_get_unary(node, ctx),
+            Language::Python => languages::python_get_unary(node, ctx),
+            Language::Rust => languages::rust_get_unary(node, ctx),
+            Language::JavaScript | Language::TypeScript => languages::js_get_unary(node, ctx),
+            Language::C | Language::Cpp => languages::c_get_unary(node, ctx),
+            Language::Java => languages::java_get_unary(node, ctx),
         }
-    }
-
-    fn get_go_unary<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Option<(String, Node<'a>)> {
-        let operand = node.child_by_field_name("operand")?;
-
-        let mut cursor = node.walk();
-        for child in node.children(&mut cursor) {
-            if !child.is_named() {
-                let op_text = ctx.get_node_text(&child);
-                if UnaryOp::parse(&op_text).is_some() || op_text == "&" || op_text == "*" {
-                    return Some((op_text, operand));
-                }
-            }
-        }
-        None
-    }
-
-    fn get_python_unary<'a>(
-        &self,
-        node: &Node<'a>,
-        ctx: &Context<'a>,
-    ) -> Option<(String, Node<'a>)> {
-        let kind = node.kind();
-
-        if kind == "not_operator" {
-            let operand = node.child_by_field_name("argument")?;
-            return Some(("not".to_string(), operand));
-        }
-
-        if kind == "unary_operator" {
-            let operand = node.child_by_field_name("argument")?;
-            let op = node.child_by_field_name("operator")?;
-            let op_text = ctx.get_node_text(&op);
-            return Some((op_text, operand));
-        }
-
-        None
-    }
-
-    fn get_rust_unary<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Option<(String, Node<'a>)> {
-        let kind = node.kind();
-
-        if kind == "reference_expression" {
-            let operand = node.child_by_field_name("value")?;
-            return Some(("&".to_string(), operand));
-        }
-
-        if kind == "dereference_expression" {
-            let operand = node.child_by_field_name("value")?;
-            return Some(("*".to_string(), operand));
-        }
-
-        if kind == "unary_expression" {
-            let operand = node.child(1)?;
-
-            if let Some(op_node) = node.child(0) {
-                if !op_node.is_named() {
-                    let op_text = ctx.get_node_text(&op_node);
-                    return Some((op_text, operand));
-                }
-            }
-        }
-
-        None
-    }
-
-    fn get_js_unary<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Option<(String, Node<'a>)> {
-        let operand = node.child_by_field_name("argument")?;
-        let op = node.child_by_field_name("operator")?;
-        let op_text = ctx.get_node_text(&op);
-        Some((op_text, operand))
-    }
-
-    fn get_c_unary<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Option<(String, Node<'a>)> {
-        let operand = node.child_by_field_name("argument")?;
-        let op = node.child_by_field_name("operator")?;
-        let op_text = ctx.get_node_text(&op);
-        Some((op_text, operand))
-    }
-
-    fn get_java_unary<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Option<(String, Node<'a>)> {
-        let operand = node.child_by_field_name("operand")?;
-        let op = node.child_by_field_name("operator")?;
-        let op_text = ctx.get_node_text(&op);
-        Some((op_text, operand))
     }
 
     fn resolve_operand<'a>(&self, operand: &Node<'a>, ctx: &Context<'a>) -> Value {

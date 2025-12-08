@@ -1,5 +1,3 @@
-// TODO: Consider moving ImportMap to a top-level `types` module since it's not scanner-specific
-
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Default)]
