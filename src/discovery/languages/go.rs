@@ -101,9 +101,16 @@ impl PackageLoader for GoPackageLoader {
     fn load_dependencies(&self, root: &Path) -> Result<Vec<PathBuf>, LoadError> {
         let root_path = root;
 
-        let vendor_path = root_path.join("vendor");
-        if vendor_path.exists() && vendor_path.is_dir() {
-            return self.scan_vendor(&vendor_path);
+        // Find all vendor directories recursively (handles nested vendor dirs like apis/vendor/)
+        let vendor_dirs = self.find_all_vendor_dirs(root_path)?;
+
+        if !vendor_dirs.is_empty() {
+            let mut all_files = Vec::new();
+            for vendor_path in vendor_dirs {
+                let files = self.scan_vendor(&vendor_path)?;
+                all_files.extend(files);
+            }
+            return Ok(all_files);
         }
 
         self.scan_dependencies_using_go_tooling(root_path)
@@ -111,6 +118,48 @@ impl PackageLoader for GoPackageLoader {
 }
 
 impl GoPackageLoader {
+    fn find_all_vendor_dirs(&self, root: &Path) -> Result<Vec<PathBuf>, LoadError> {
+        let mut vendor_dirs = Vec::new();
+
+        fn walk_for_vendor(dir: &Path, vendor_dirs: &mut Vec<PathBuf>) -> std::io::Result<()> {
+            if !dir.is_dir() {
+                return Ok(());
+            }
+
+            for entry in fs::read_dir(dir)? {
+                let entry = entry?;
+                let path = entry.path();
+
+                if !path.is_dir() {
+                    continue;
+                }
+
+                let dir_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+
+                // Skip hidden directories and other excluded dirs (but not vendor - we want to find it!)
+                if dir_name.starts_with('.') || dir_name == "testdata" {
+                    continue;
+                }
+
+                // Found a vendor directory
+                if dir_name == "vendor" {
+                    vendor_dirs.push(path);
+                    // Don't recurse into vendor directories
+                    continue;
+                }
+
+                // Recurse into other directories to find nested vendor dirs
+                walk_for_vendor(&path, vendor_dirs)?;
+            }
+
+            Ok(())
+        }
+
+        walk_for_vendor(root, &mut vendor_dirs).map_err(LoadError::Io)?;
+
+        Ok(vendor_dirs)
+    }
+
     pub fn is_stdlib_package(&self, package_path: &str) -> bool {
         if package_path.starts_with(STD_PREFIX) || package_path.starts_with(INTERNAL_PREFIX) {
             return true;
@@ -386,6 +435,73 @@ mod tests {
 
         assert!(!files.is_empty());
         assert!(files.iter().any(|f| f.to_string_lossy().contains("vendor")));
+    }
+
+    #[test]
+    fn test_load_dependencies_finds_nested_vendor() {
+        let temp_dir = TempDir::new().unwrap();
+        let root = temp_dir.path().to_path_buf();
+
+        // Create root vendor
+        fs::create_dir_all(root.join("vendor/pkg1")).unwrap();
+        fs::File::create(root.join("vendor/pkg1/lib1.go"))
+            .unwrap()
+            .write_all(b"package pkg1")
+            .unwrap();
+
+        // Create nested vendor (like apis/vendor in hive)
+        fs::create_dir_all(root.join("apis/vendor/pkg2")).unwrap();
+        fs::File::create(root.join("apis/vendor/pkg2/lib2.go"))
+            .unwrap()
+            .write_all(b"package pkg2")
+            .unwrap();
+
+        // Create another nested vendor
+        fs::create_dir_all(root.join("submodule/vendor/pkg3")).unwrap();
+        fs::File::create(root.join("submodule/vendor/pkg3/lib3.go"))
+            .unwrap()
+            .write_all(b"package pkg3")
+            .unwrap();
+
+        let loader = GoPackageLoader;
+        let files = loader.load_dependencies(&root).unwrap();
+
+        // Should find files from all vendor directories
+        assert!(
+            files.len() >= 3,
+            "Expected at least 3 files, got {}",
+            files.len()
+        );
+        assert!(files
+            .iter()
+            .any(|f| f.to_string_lossy().contains("vendor/pkg1")));
+        assert!(files
+            .iter()
+            .any(|f| f.to_string_lossy().contains("apis/vendor/pkg2")));
+        assert!(files
+            .iter()
+            .any(|f| f.to_string_lossy().contains("submodule/vendor/pkg3")));
+    }
+
+    #[test]
+    fn test_find_all_vendor_dirs() {
+        let temp_dir = TempDir::new().unwrap();
+        let root = temp_dir.path().to_path_buf();
+
+        // Create multiple vendor directories
+        fs::create_dir_all(root.join("vendor")).unwrap();
+        fs::create_dir_all(root.join("apis/vendor")).unwrap();
+        fs::create_dir_all(root.join("cmd/app/vendor")).unwrap();
+
+        let loader = GoPackageLoader;
+        let vendor_dirs = loader.find_all_vendor_dirs(&root).unwrap();
+
+        assert_eq!(
+            vendor_dirs.len(),
+            3,
+            "Expected 3 vendor dirs, got {:?}",
+            vendor_dirs
+        );
     }
 
     #[test]

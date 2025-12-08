@@ -39,3 +39,4 @@ coverage/
 
 # Dev artifacts
 .developer
+*findings*.json

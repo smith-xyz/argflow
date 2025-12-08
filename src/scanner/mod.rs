@@ -25,8 +25,56 @@ pub trait CryptoMatcher: Send + Sync {
     ) -> bool;
 }
 
-/// Default pattern-based matcher. Matches against a list of known crypto terms.
-/// This is a simple MVP implementation; for production use the classifier module.
+/// Mapping type: import_path -> (function_name -> classification_key)
+pub type MappingsMap = HashMap<String, HashMap<String, String>>;
+
+/// Mapping-based matcher. Only matches calls that have explicit mappings in classifier-rules.
+/// This provides high precision - only known crypto APIs are detected.
+pub struct MappingMatcher {
+    mappings: MappingsMap,
+}
+
+impl MappingMatcher {
+    pub fn new(mappings: MappingsMap) -> Self {
+        Self { mappings }
+    }
+}
+
+impl CryptoMatcher for MappingMatcher {
+    fn is_crypto_call(
+        &self,
+        function_name: &str,
+        package: Option<&str>,
+        import_path: Option<&str>,
+    ) -> bool {
+        let func_lower = function_name.to_lowercase();
+
+        // Try full import path first (most precise)
+        if let Some(path) = import_path {
+            let path_lower = path.to_lowercase();
+            if let Some(functions) = self.mappings.get(&path_lower) {
+                if functions.contains_key(&func_lower) {
+                    return true;
+                }
+            }
+        }
+
+        // Fallback: try package name as import path
+        if let Some(pkg) = package {
+            let pkg_lower = pkg.to_lowercase();
+            if let Some(functions) = self.mappings.get(&pkg_lower) {
+                if functions.contains_key(&func_lower) {
+                    return true;
+                }
+            }
+        }
+
+        false
+    }
+}
+
+/// Pattern-based matcher. Matches against a list of known crypto terms.
+/// This provides high recall but may have false positives.
 pub struct PatternMatcher {
     patterns: Vec<String>,
 }
@@ -97,10 +145,43 @@ impl CryptoCall {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct CryptoConfigField {
+    pub field_name: String,
+    pub value: Value,
+    pub classification_key: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CryptoConfig {
+    pub file_path: String,
+    pub line: usize,
+    pub column: usize,
+    pub struct_type: String,
+    pub package: Option<String>,
+    pub import_path: Option<String>,
+    pub fields: Vec<CryptoConfigField>,
+    pub raw_text: String,
+    pub language: String,
+}
+
+impl CryptoConfig {
+    pub fn full_type(&self) -> String {
+        match &self.import_path {
+            Some(path) => format!("{}.{}", path, self.struct_type),
+            None => match &self.package {
+                Some(pkg) => format!("{}.{}", pkg, self.struct_type),
+                None => self.struct_type.clone(),
+            },
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct ScanResult {
     pub file_path: String,
     pub calls: Vec<CryptoCall>,
+    pub configs: Vec<CryptoConfig>,
     pub errors: Vec<String>,
 }
 
@@ -109,12 +190,17 @@ impl ScanResult {
         Self {
             file_path,
             calls: Vec::new(),
+            configs: Vec::new(),
             errors: Vec::new(),
         }
     }
 
     pub fn add_call(&mut self, call: CryptoCall) {
         self.calls.push(call);
+    }
+
+    pub fn add_config(&mut self, config: CryptoConfig) {
+        self.configs.push(config);
     }
 
     pub fn add_error(&mut self, error: String) {
@@ -125,15 +211,22 @@ impl ScanResult {
         self.calls.len()
     }
 
+    pub fn config_count(&self) -> usize {
+        self.configs.len()
+    }
+
     pub fn has_errors(&self) -> bool {
         !self.errors.is_empty()
     }
 }
 
+pub type StructFieldsMap = HashMap<String, HashMap<String, String>>;
+
 pub struct Scanner {
     resolver: Resolver,
     matcher: Box<dyn CryptoMatcher>,
     query_engine: QueryEngine,
+    struct_fields: StructFieldsMap,
 }
 
 impl Scanner {
@@ -142,6 +235,7 @@ impl Scanner {
             resolver: Resolver::new(),
             matcher: Box::new(PatternMatcher::default_patterns()),
             query_engine: QueryEngine::new(),
+            struct_fields: HashMap::new(),
         }
     }
 
@@ -150,6 +244,7 @@ impl Scanner {
             resolver,
             matcher: Box::new(PatternMatcher::default_patterns()),
             query_engine: QueryEngine::new(),
+            struct_fields: HashMap::new(),
         }
     }
 
@@ -160,6 +255,32 @@ impl Scanner {
 
     pub fn with_patterns(self, patterns: Vec<String>) -> Self {
         self.with_matcher(PatternMatcher::new(patterns))
+    }
+
+    pub fn with_mappings(mappings: MappingsMap) -> Self {
+        Self {
+            resolver: Resolver::new(),
+            matcher: Box::new(MappingMatcher::new(mappings)),
+            query_engine: QueryEngine::new(),
+            struct_fields: HashMap::new(),
+        }
+    }
+
+    pub fn with_struct_fields(mut self, struct_fields: StructFieldsMap) -> Self {
+        self.struct_fields = struct_fields;
+        self
+    }
+
+    pub fn with_mappings_and_struct_fields(
+        mappings: MappingsMap,
+        struct_fields: StructFieldsMap,
+    ) -> Self {
+        Self {
+            resolver: Resolver::new(),
+            matcher: Box::new(MappingMatcher::new(mappings)),
+            query_engine: QueryEngine::new(),
+            struct_fields,
+        }
     }
 
     pub fn scan_tree<'a>(
@@ -245,6 +366,7 @@ impl Scanner {
         imports: &ImportMap,
         result: &mut ScanResult,
     ) {
+        // Detect function calls
         if ctx.is_node_category(node.kind(), NodeCategory::CallExpression) {
             if let Some(call) = self.process_call_node(&node, ctx, imports) {
                 if self.is_crypto_call(&call) {
@@ -253,10 +375,206 @@ impl Scanner {
             }
         }
 
+        // Detect struct literals (Go: composite_literal, Rust: struct_expression)
+        if self.is_struct_literal(node.kind(), ctx.language()) {
+            if let Some(config) = self.process_struct_literal(&node, ctx, imports) {
+                result.add_config(config);
+            }
+        }
+
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             self.traverse_node(child, ctx, imports, result);
         }
+    }
+
+    fn is_struct_literal(&self, node_kind: &str, language: &str) -> bool {
+        match language {
+            "go" => node_kind == "composite_literal",
+            "rust" => node_kind == "struct_expression",
+            _ => false,
+        }
+    }
+
+    fn process_struct_literal<'a>(
+        &self,
+        node: &Node<'a>,
+        ctx: &Context<'a>,
+        imports: &ImportMap,
+    ) -> Option<CryptoConfig> {
+        // Extract struct type
+        let (struct_type, package) = self.extract_struct_type(node, ctx)?;
+
+        // Check if this is a crypto-related struct
+        let import_path = package.as_ref().and_then(|pkg| imports.resolve(pkg));
+        let full_type = match &import_path {
+            Some(path) => format!("{path}.{struct_type}"),
+            None => match &package {
+                Some(pkg) => format!("{pkg}.{struct_type}"),
+                None => struct_type.clone(),
+            },
+        };
+
+        // Check if we have mappings for this struct type
+        let type_lower = full_type.to_lowercase();
+        if !self.struct_fields.contains_key(&type_lower) {
+            // Also try with just package.Type (without full import path)
+            let short_type = match &package {
+                Some(pkg) => format!("{pkg}.{struct_type}").to_lowercase(),
+                None => return None,
+            };
+            if !self.struct_fields.contains_key(&short_type) {
+                return None;
+            }
+        }
+
+        // Extract field values
+        let fields = self.extract_struct_fields(node, ctx, &full_type);
+        if fields.is_empty() {
+            return None;
+        }
+
+        let start = node.start_position();
+        let raw_text = ctx.get_node_text(node);
+
+        Some(CryptoConfig {
+            file_path: ctx.file_path().to_string(),
+            line: start.row + 1,
+            column: start.column + 1,
+            struct_type,
+            package,
+            import_path,
+            fields,
+            raw_text,
+            language: ctx.language().to_string(),
+        })
+    }
+
+    fn extract_struct_type<'a>(
+        &self,
+        node: &Node<'a>,
+        ctx: &Context<'a>,
+    ) -> Option<(String, Option<String>)> {
+        // Go: composite_literal has a type child
+        // The type can be a selector_expression (pkg.Type) or identifier (Type)
+        let type_node = node.child_by_field_name("type")?;
+
+        match type_node.kind() {
+            "selector_expression" | "qualified_type" => {
+                let operand = type_node
+                    .child_by_field_name("operand")
+                    .or_else(|| type_node.child_by_field_name("package"))?;
+                let field = type_node
+                    .child_by_field_name("field")
+                    .or_else(|| type_node.child_by_field_name("name"))?;
+                let package = ctx.get_node_text(&operand);
+                let name = ctx.get_node_text(&field);
+                Some((name, Some(package)))
+            }
+            "identifier" | "type_identifier" => {
+                let name = ctx.get_node_text(&type_node);
+                Some((name, None))
+            }
+            _ => None,
+        }
+    }
+
+    fn extract_struct_fields<'a>(
+        &self,
+        node: &Node<'a>,
+        ctx: &Context<'a>,
+        struct_type: &str,
+    ) -> Vec<CryptoConfigField> {
+        let mut fields = Vec::new();
+
+        // Find the literal_value/field_declaration_list node
+        let body = node
+            .child_by_field_name("body")
+            .or_else(|| self.find_struct_body(node));
+
+        let body = match body {
+            Some(b) => b,
+            None => return fields,
+        };
+
+        let type_lower = struct_type.to_lowercase();
+        let field_mappings = self.struct_fields.get(&type_lower);
+
+        let mut cursor = body.walk();
+        for child in body.children(&mut cursor) {
+            // Go uses keyed_element for field: value
+            if child.kind() == "keyed_element" || child.kind() == "field_initializer" {
+                if let Some(field) = self.extract_keyed_field(&child, ctx, field_mappings) {
+                    fields.push(field);
+                }
+            }
+        }
+
+        fields
+    }
+
+    #[allow(clippy::manual_find)]
+    fn find_struct_body<'a>(&self, node: &Node<'a>) -> Option<Node<'a>> {
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            if child.kind() == "literal_value" || child.kind() == "field_initializer_list" {
+                return Some(child);
+            }
+        }
+        None
+    }
+
+    fn unwrap_literal_element<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> String {
+        if node.kind() == "literal_element" {
+            if let Some(child) = node.child(0) {
+                return ctx.get_node_text(&child);
+            }
+        }
+        ctx.get_node_text(node)
+    }
+
+    fn unwrap_literal_element_node<'a>(&self, node: &Node<'a>) -> Node<'a> {
+        if node.kind() == "literal_element" {
+            if let Some(child) = node.child(0) {
+                return child;
+            }
+        }
+        *node
+    }
+
+    fn extract_keyed_field<'a>(
+        &self,
+        node: &Node<'a>,
+        ctx: &Context<'a>,
+        field_mappings: Option<&HashMap<String, String>>,
+    ) -> Option<CryptoConfigField> {
+        // Go keyed_element: field_name: value
+        // Note: In Go, both key and value are wrapped in literal_element nodes
+        let key_node = node.child(0)?;
+        let field_name = self.unwrap_literal_element(&key_node, ctx);
+
+        // Find value node (skip the colon)
+        let value_node = node.child_by_field_name("value").or_else(|| {
+            let mut cursor = node.walk();
+            node.children(&mut cursor).last()
+        })?;
+
+        // Unwrap literal_element if present (Go wraps values in literal_element)
+        let actual_value_node = self.unwrap_literal_element_node(&value_node);
+
+        let value = self.resolver.resolve(&actual_value_node, ctx);
+
+        let classification_key = field_mappings.and_then(|mappings| {
+            mappings
+                .get(&field_name.to_lowercase())
+                .map(|s| s.to_string())
+        });
+
+        Some(CryptoConfigField {
+            field_name,
+            value,
+            classification_key,
+        })
     }
 
     fn process_call_node<'a>(
@@ -700,5 +1018,41 @@ h = hashes.SHA256()
             call.import_path,
             Some("cryptography.hazmat.primitives.hashes".to_string())
         );
+    }
+
+    #[test]
+    fn test_struct_literal_tls_config_detection() {
+        let source = r#"package main
+import "crypto/tls"
+func main() {
+    cfg := tls.Config{
+        MinVersion: tls.VersionTLS12,
+    }
+    _ = cfg
+}"#;
+        let tree = parse_go(source);
+
+        let mut struct_fields = HashMap::new();
+        let mut tls_fields = HashMap::new();
+        tls_fields.insert(
+            "minversion".to_string(),
+            "tls_config_min_version".to_string(),
+        );
+        struct_fields.insert("tls.config".to_string(), tls_fields);
+
+        let scanner = Scanner::new().with_struct_fields(struct_fields);
+        let result = scanner.scan_tree(&tree, source.as_bytes(), "test.go", "go");
+
+        assert_eq!(result.configs.len(), 1, "Should detect tls.Config struct");
+
+        let config = &result.configs[0];
+        assert_eq!(config.struct_type, "Config");
+        assert_eq!(config.package, Some("tls".to_string()));
+
+        assert_eq!(config.fields.len(), 1);
+        let field = &config.fields[0];
+        assert_eq!(field.field_name, "MinVersion");
+        assert_eq!(field.value.expression, "tls.VersionTLS12");
+        assert!(!field.value.is_resolved);
     }
 }

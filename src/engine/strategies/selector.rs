@@ -658,4 +658,38 @@ const x = a.b.c;
         let node = find_first_node_of_kind(tree.root_node(), "binary_expression").unwrap();
         assert!(!strategy.can_handle(&node, &ctx));
     }
+
+    #[test]
+    fn test_go_tls_version_constant() {
+        let source = r#"package main
+import "crypto/tls"
+func main() {
+    cfg := tls.Config{
+        MinVersion: tls.VersionTLS12,
+    }
+    _ = cfg
+}"#;
+        let tree = parse_go(source);
+        let ctx = create_go_context(&tree, source.as_bytes());
+        let strategy = SelectorStrategy::new();
+
+        // Find tls.VersionTLS12 selector
+        let selectors = find_all_selectors(tree.root_node(), &ctx);
+        let tls_version = selectors
+            .iter()
+            .find(|s| ctx.get_node_text(s) == "tls.VersionTLS12");
+
+        assert!(
+            tls_version.is_some(),
+            "Should find tls.VersionTLS12 selector"
+        );
+        let node = tls_version.unwrap();
+
+        assert!(strategy.can_handle(node, &ctx));
+        let value = strategy.resolve(node, &ctx);
+
+        // Should return partial expression "tls.VersionTLS12"
+        assert!(!value.is_resolved);
+        assert_eq!(value.expression, "tls.VersionTLS12");
+    }
 }

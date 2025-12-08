@@ -6,7 +6,7 @@ use crypto_extractor_core::discovery::filter::CryptoFileFilter;
 use crypto_extractor_core::discovery::languages::go::{GoCryptoFilter, GoPackageLoader};
 use crypto_extractor_core::discovery::loader::PackageLoader;
 use crypto_extractor_core::logging::{self, Verbosity};
-use crypto_extractor_core::scanner::{CryptoCall, ScanResult, Scanner};
+use crypto_extractor_core::scanner::{CryptoCall, CryptoConfig, ScanResult, Scanner};
 use serde::Serialize;
 use std::path::Path;
 use tracing::{debug, info, trace, warn};
@@ -39,9 +39,6 @@ fn main() -> Result<()> {
 
     info!(language = language.as_str(), "using language");
 
-    let scanner = Scanner::new();
-    trace!("scanner initialized");
-
     let classifier = RulesClassifier::from_bundled()
         .map_err(|e| anyhow::anyhow!("Failed to load classifier rules: {e}"))?;
     debug!(
@@ -50,8 +47,23 @@ fn main() -> Result<()> {
         "classifier loaded"
     );
 
+    // Create scanner with classifier mappings and struct field detection
+    // Only calls with explicit API mappings will be detected (high precision)
+    let scanner = Scanner::with_mappings_and_struct_fields(
+        classifier.get_mappings().clone(),
+        classifier.get_struct_fields().clone(),
+    );
+    trace!("scanner initialized with classifier mappings and struct fields");
+
     if args.path.is_dir() {
-        scan_directory(&args.path, language, &scanner, &classifier, args.output)?;
+        scan_directory(
+            &args.path,
+            language,
+            &scanner,
+            &classifier,
+            args.output,
+            args.include_deps,
+        )?;
     } else {
         scan_file(&args.path, language, &scanner, &classifier, args.output)?;
     }
@@ -93,19 +105,37 @@ fn scan_directory(
     scanner: &Scanner,
     classifier: &RulesClassifier,
     output_format: OutputFormat,
+    include_deps: bool,
 ) -> Result<()> {
-    debug!(directory = %path.display(), "scanning directory");
+    debug!(directory = %path.display(), include_deps, "scanning directory");
 
     match language {
         cli::Language::Go => {
             let loader = GoPackageLoader;
             let filter = GoCryptoFilter;
 
-            info!("discovering files");
-            let all_files = loader
+            // Discover user code files
+            info!("discovering user code files");
+            let mut all_files = loader
                 .load_user_code(path)
                 .context("Failed to discover user code files")?;
-            info!(count = all_files.len(), "found source files");
+            info!(count = all_files.len(), "found user code files");
+
+            // Optionally include dependency files
+            if include_deps {
+                info!("discovering dependency files");
+                match loader.load_dependencies(path) {
+                    Ok(dep_files) => {
+                        info!(count = dep_files.len(), "found dependency files");
+                        all_files.extend(dep_files);
+                    }
+                    Err(e) => {
+                        warn!(error = %e, "failed to load dependencies, continuing with user code only");
+                    }
+                }
+            }
+
+            info!(total = all_files.len(), "total files to scan");
 
             info!("filtering for crypto usage");
             let crypto_files: Vec<_> = all_files
@@ -185,7 +215,10 @@ fn parse_source(source: &str, language: cli::Language) -> Result<tree_sitter::Tr
 struct JsonOutput {
     files_scanned: usize,
     total_calls: usize,
+    total_configs: usize,
     findings: Vec<Finding>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    configs: Vec<ConfigFinding>,
 }
 
 #[derive(Serialize)]
@@ -216,22 +249,54 @@ struct ArgumentValue {
     value: serde_json::Value,
 }
 
+#[derive(Serialize)]
+struct ConfigFinding {
+    file: String,
+    line: usize,
+    column: usize,
+    struct_type: String,
+    full_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    package: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    import_path: Option<String>,
+    fields: Vec<ConfigFieldValue>,
+    raw_text: String,
+}
+
+#[derive(Serialize)]
+struct ConfigFieldValue {
+    field_name: String,
+    resolved: bool,
+    value: serde_json::Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    classification_key: Option<String>,
+}
+
 fn output_results(
     results: &[ScanResult],
     classifier: &RulesClassifier,
     format: OutputFormat,
 ) -> Result<()> {
     let total_calls: usize = results.iter().map(|r| r.call_count()).sum();
+    let total_configs: usize = results.iter().map(|r| r.config_count()).sum();
 
     let findings: Vec<Finding> = results
         .iter()
         .flat_map(|r| r.calls.iter().map(|call| call_to_finding(call, classifier)))
         .collect();
 
+    let configs: Vec<ConfigFinding> = results
+        .iter()
+        .flat_map(|r| r.configs.iter().map(config_to_finding))
+        .collect();
+
     let output = JsonOutput {
         files_scanned: results.len(),
         total_calls,
+        total_configs,
         findings,
+        configs,
     };
 
     match format {
@@ -284,6 +349,31 @@ fn call_to_finding(call: &CryptoCall, classifier: &RulesClassifier) -> Finding {
         primitive: classification.primitive,
         arguments,
         raw_text: call.raw_text.clone(),
+    }
+}
+
+fn config_to_finding(config: &CryptoConfig) -> ConfigFinding {
+    let fields: Vec<ConfigFieldValue> = config
+        .fields
+        .iter()
+        .map(|f| ConfigFieldValue {
+            field_name: f.field_name.clone(),
+            resolved: f.value.is_resolved,
+            value: value_to_json(&f.value),
+            classification_key: f.classification_key.clone(),
+        })
+        .collect();
+
+    ConfigFinding {
+        file: config.file_path.clone(),
+        line: config.line,
+        column: config.column,
+        struct_type: config.struct_type.clone(),
+        full_type: config.full_type(),
+        package: config.package.clone(),
+        import_path: config.import_path.clone(),
+        fields,
+        raw_text: config.raw_text.clone(),
     }
 }
 

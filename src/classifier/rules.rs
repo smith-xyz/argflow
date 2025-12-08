@@ -47,13 +47,30 @@ struct MappingsFile {
     #[allow(dead_code)]
     language: String,
     mappings: HashMap<String, HashMap<String, String>>,
+    #[serde(default)]
+    struct_fields: HashMap<String, HashMap<String, String>>,
+    #[serde(default)]
+    constants: HashMap<String, HashMap<String, ConstantValue>>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ConstantValue {
+    pub value: i64,
+    #[serde(default)]
+    pub protocol: Option<String>,
+    #[serde(default)]
+    pub version: Option<String>,
 }
 
 type ImportMap = HashMap<String, HashMap<String, String>>;
+type StructFieldMap = HashMap<String, HashMap<String, String>>;
+type ConstantsMap = HashMap<String, HashMap<String, ConstantValue>>;
 
 pub struct RulesClassifier {
     classifications: HashMap<String, Classification>,
     mappings: ImportMap,
+    struct_fields: StructFieldMap,
+    constants: ConstantsMap,
 }
 
 impl RulesClassifier {
@@ -61,6 +78,8 @@ impl RulesClassifier {
         Self {
             classifications: HashMap::new(),
             mappings: HashMap::new(),
+            struct_fields: HashMap::new(),
+            constants: HashMap::new(),
         }
     }
 
@@ -98,6 +117,25 @@ impl RulesClassifier {
                 count += 1;
             }
         }
+
+        // Load struct field mappings
+        for (struct_type, fields) in file.struct_fields {
+            let type_lower = struct_type.to_lowercase();
+            let entry = self.struct_fields.entry(type_lower).or_default();
+            for (field, key) in fields {
+                entry.insert(field.to_lowercase(), key);
+            }
+        }
+
+        // Load constant values
+        for (package, constants) in file.constants {
+            let pkg_lower = package.to_lowercase();
+            let entry = self.constants.entry(pkg_lower).or_default();
+            for (name, value) in constants {
+                entry.insert(name.to_lowercase(), value);
+            }
+        }
+
         debug!(count, "loaded mappings");
         Ok(())
     }
@@ -205,6 +243,36 @@ impl RulesClassifier {
 
     pub fn get_mappings(&self) -> &HashMap<String, HashMap<String, String>> {
         &self.mappings
+    }
+
+    pub fn get_struct_fields(&self) -> &StructFieldMap {
+        &self.struct_fields
+    }
+
+    pub fn get_constants(&self) -> &ConstantsMap {
+        &self.constants
+    }
+
+    pub fn lookup_struct_field(&self, struct_type: &str, field_name: &str) -> Option<&str> {
+        let type_lower = struct_type.to_lowercase();
+        let field_lower = field_name.to_lowercase();
+        self.struct_fields
+            .get(&type_lower)
+            .and_then(|fields| fields.get(&field_lower))
+            .map(|s| s.as_str())
+    }
+
+    pub fn is_crypto_struct(&self, struct_type: &str) -> bool {
+        let type_lower = struct_type.to_lowercase();
+        self.struct_fields.contains_key(&type_lower)
+    }
+
+    pub fn lookup_constant(&self, package: &str, constant_name: &str) -> Option<&ConstantValue> {
+        let pkg_lower = package.to_lowercase();
+        let const_lower = constant_name.to_lowercase();
+        self.constants
+            .get(&pkg_lower)
+            .and_then(|constants| constants.get(&const_lower))
     }
 }
 
