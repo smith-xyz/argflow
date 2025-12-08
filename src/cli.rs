@@ -8,7 +8,7 @@ pub enum OutputFormat {
     Cbom,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, ValueEnum)]
 pub enum Language {
     Go,
     Python,

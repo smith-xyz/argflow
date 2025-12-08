@@ -2,6 +2,7 @@ use anyhow::{Context as AnyhowContext, Result};
 use clap::Parser;
 use crypto_extractor_core::classifier::{classify_call, RulesClassifier};
 use crypto_extractor_core::cli::{self, OutputFormat};
+use crypto_extractor_core::discovery::cache::DiscoveryCache;
 use crypto_extractor_core::discovery::filter::CryptoFileFilter;
 use crypto_extractor_core::discovery::languages::go::{GoCryptoFilter, GoPackageLoader};
 use crypto_extractor_core::discovery::loader::PackageLoader;
@@ -113,6 +114,7 @@ fn scan_directory(
         cli::Language::Go => {
             let loader = GoPackageLoader;
             let filter = GoCryptoFilter;
+            let mut cache = DiscoveryCache::default();
 
             // Discover user code files
             info!("discovering user code files");
@@ -124,7 +126,7 @@ fn scan_directory(
             // Optionally include dependency files
             if include_deps {
                 info!("discovering dependency files");
-                match loader.load_dependencies(path) {
+                match loader.load_dependencies(path, &mut cache) {
                     Ok(dep_files) => {
                         info!(count = dep_files.len(), "found dependency files");
                         all_files.extend(dep_files);
@@ -142,7 +144,7 @@ fn scan_directory(
                 .into_iter()
                 .filter_map(|file| {
                     filter
-                        .has_crypto_usage(&file)
+                        .has_crypto_usage(&file.path)
                         .ok()
                         .and_then(|has_crypto| has_crypto.then_some(file))
                 })
@@ -151,19 +153,19 @@ fn scan_directory(
 
             let mut results = Vec::new();
             for file in &crypto_files {
-                trace!(file = %file.display(), "scanning file");
-                match std::fs::read_to_string(file) {
+                trace!(file = %file.path.display(), "scanning file");
+                match std::fs::read_to_string(&file.path) {
                     Ok(source) => {
                         if let Ok(tree) = parse_source(&source, language) {
                             let result = scanner.scan_tree(
                                 &tree,
                                 source.as_bytes(),
-                                &file.to_string_lossy(),
+                                &file.path.to_string_lossy(),
                                 language.as_str(),
                             );
                             if result.call_count() > 0 {
                                 debug!(
-                                    file = %file.display(),
+                                    file = %file.path.display(),
                                     calls = result.call_count(),
                                     "found crypto calls"
                                 );
@@ -171,7 +173,7 @@ fn scan_directory(
                             }
                         }
                     }
-                    Err(e) => warn!(file = %file.display(), error = %e, "failed to read file"),
+                    Err(e) => warn!(file = %file.path.display(), error = %e, "failed to read file"),
                 }
             }
 

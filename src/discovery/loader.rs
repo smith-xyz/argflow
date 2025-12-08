@@ -1,9 +1,19 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-pub trait PackageLoader {
-    fn load_user_code(&self, root: &Path) -> Result<Vec<PathBuf>, LoadError>;
+use crate::cli::Language;
+use crate::discovery::cache::DiscoveryCache;
+use crate::discovery::SourceFile;
 
-    fn load_dependencies(&self, root: &Path) -> Result<Vec<PathBuf>, LoadError>;
+pub trait PackageLoader: Send + Sync {
+    fn load_user_code(&self, root: &Path) -> Result<Vec<SourceFile>, LoadError>;
+
+    fn load_dependencies(
+        &self,
+        root: &Path,
+        cache: &mut DiscoveryCache,
+    ) -> Result<Vec<SourceFile>, LoadError>;
+
+    fn language(&self) -> Language;
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -27,26 +37,36 @@ pub enum LoadError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use walkdir::WalkDir;
+    use crate::discovery::cache::DiscoveryCache;
+    use std::path::PathBuf;
 
     #[test]
     fn test_package_loader_trait_compiles() {
         struct TestLoader;
 
         impl PackageLoader for TestLoader {
-            fn load_user_code(&self, _root: &Path) -> Result<Vec<PathBuf>, LoadError> {
+            fn load_user_code(&self, _root: &Path) -> Result<Vec<SourceFile>, LoadError> {
                 Ok(vec![])
             }
 
-            fn load_dependencies(&self, _root: &Path) -> Result<Vec<PathBuf>, LoadError> {
+            fn load_dependencies(
+                &self,
+                _root: &Path,
+                _cache: &mut DiscoveryCache,
+            ) -> Result<Vec<SourceFile>, LoadError> {
                 Ok(vec![])
+            }
+
+            fn language(&self) -> Language {
+                Language::Go
             }
         }
 
         let loader = TestLoader;
+        let mut cache = DiscoveryCache::default();
         let root = PathBuf::from("/tmp");
         assert!(loader.load_user_code(&root).is_ok());
-        assert!(loader.load_dependencies(&root).is_ok());
+        assert!(loader.load_dependencies(&root, &mut cache).is_ok());
     }
 
     #[test]
@@ -62,7 +82,7 @@ mod tests {
         assert!(pkg_error.to_string().contains("Package manager error"));
 
         let test_path = std::path::PathBuf::from("/nonexistent/test/path");
-        let walkdir_result = WalkDir::new(&test_path).into_iter().next();
+        let walkdir_result = walkdir::WalkDir::new(&test_path).into_iter().next();
         if let Some(Err(walkdir_error)) = walkdir_result {
             let scan_error = LoadError::DirectoryScanError {
                 path: test_path.clone(),

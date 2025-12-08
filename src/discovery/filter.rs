@@ -1,7 +1,11 @@
 use std::path::Path;
 
-pub trait CryptoFileFilter {
+use crate::cli::Language;
+
+pub trait CryptoFileFilter: Send + Sync {
     fn has_crypto_usage(&self, file_path: &Path) -> Result<bool, FilterError>;
+
+    fn language(&self) -> Language;
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -24,6 +28,10 @@ mod tests {
         impl CryptoFileFilter for TestFilter {
             fn has_crypto_usage(&self, _file_path: &Path) -> Result<bool, FilterError> {
                 Ok(false)
+            }
+
+            fn language(&self) -> Language {
+                Language::Go
             }
         }
 
