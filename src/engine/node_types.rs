@@ -278,7 +278,9 @@ impl NodeTypes {
         match self.language {
             Language::Go => ["composite_literal"].into_iter().collect(),
             Language::Python => ["list", "tuple"].into_iter().collect(),
-            Language::Rust => ["array_expression"].into_iter().collect(),
+            Language::Rust => ["array_expression", "tuple_expression"]
+                .into_iter()
+                .collect(),
             Language::JavaScript | Language::TypeScript => ["array"].into_iter().collect(),
             Language::C | Language::Cpp => ["initializer_list"].into_iter().collect(),
             Language::Java => ["array_initializer"].into_iter().collect(),

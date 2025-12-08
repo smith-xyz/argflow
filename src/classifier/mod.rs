@@ -234,7 +234,8 @@ mod integration_tests {
     #[test]
     fn test_tls_protocol_version() {
         let classifier = RulesClassifier::from_bundled().unwrap();
-        let call = make_call(Some("crypto/tls"), Some("tls"), "Version_TLS13", "go");
+        // Note: mapping uses VersionTLS13 (no underscore)
+        let call = make_call(Some("crypto/tls"), Some("tls"), "VersionTLS13", "go");
 
         let result = classify_call(&call, &classifier);
 

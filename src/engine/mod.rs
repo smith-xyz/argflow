@@ -16,15 +16,14 @@ pub use scope::{Scope, ScopeEntry};
 pub use sources::UnresolvedSource;
 pub use value::Value;
 
+use strategies::BinaryStrategy;
+use strategies::CallStrategy;
+use strategies::CompositeStrategy;
+use strategies::IdentifierStrategy;
+use strategies::IndexStrategy;
 use strategies::LiteralStrategy;
-// TODO: Uncomment as strategies are implemented
-// use strategies::UnaryStrategy;
-// use strategies::BinaryStrategy;
-// use strategies::IdentifierStrategy;
-// use strategies::CallStrategy;
-// use strategies::SelectorStrategy;
-// use strategies::IndexStrategy;
-// use strategies::CompositeStrategy;
+use strategies::SelectorStrategy;
+use strategies::UnaryStrategy;
 use tree_sitter::Node;
 
 const DEFAULT_MAX_DEPTH: usize = 50;
@@ -54,13 +53,13 @@ impl Resolver {
         vec![
             // Order matters: simpler strategies first
             Box::new(LiteralStrategy::new()),
-            // Box::new(UnaryStrategy::new()),
-            // Box::new(BinaryStrategy::new()),
-            // Box::new(IdentifierStrategy::new()),
-            // Box::new(CallStrategy::new()),
-            // Box::new(SelectorStrategy::new()),
-            // Box::new(IndexStrategy::new()),
-            // Box::new(CompositeStrategy::new()),
+            Box::new(UnaryStrategy::new()),
+            Box::new(BinaryStrategy::new()),
+            Box::new(IdentifierStrategy::new()),
+            Box::new(CallStrategy::new()),
+            Box::new(SelectorStrategy::new()),
+            Box::new(IndexStrategy::new()),
+            Box::new(CompositeStrategy::new()),
         ]
     }
 
@@ -207,15 +206,39 @@ mod tests {
     #[test]
     fn test_resolver_default() {
         let resolver = Resolver::new();
-        assert_eq!(resolver.strategy_count(), 1);
-        assert_eq!(resolver.strategy_names(), vec!["literal"]);
+        assert_eq!(resolver.strategy_count(), 8);
+        assert_eq!(
+            resolver.strategy_names(),
+            vec![
+                "literal",
+                "unary",
+                "binary",
+                "identifier",
+                "call",
+                "selector",
+                "index",
+                "composite"
+            ]
+        );
     }
 
     #[test]
     fn test_resolver_builder_defaults() {
         let resolver = Resolver::builder().build();
-        assert_eq!(resolver.strategy_count(), 1);
-        assert_eq!(resolver.strategy_names(), vec!["literal"]);
+        assert_eq!(resolver.strategy_count(), 8);
+        assert_eq!(
+            resolver.strategy_names(),
+            vec![
+                "literal",
+                "unary",
+                "binary",
+                "identifier",
+                "call",
+                "selector",
+                "index",
+                "composite"
+            ]
+        );
     }
 
     #[test]
@@ -263,7 +286,7 @@ mod tests {
     }
 
     #[test]
-    fn test_resolver_unhandled_node() {
+    fn test_resolver_identifier_not_found() {
         let source = "package main\nvar x = someIdentifier";
         let tree = parse_go(source);
         let ctx = create_context(&tree, source.as_bytes());
@@ -273,7 +296,9 @@ mod tests {
             .expect("should find someIdentifier");
         let value = resolver.resolve(&node, &ctx);
 
+        // Identifier strategy handles it but can't find declaration
         assert!(!value.is_resolved);
+        assert_eq!(value.source, "identifier_not_found");
     }
 
     fn find_node_by_text<'a>(

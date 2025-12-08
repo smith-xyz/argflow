@@ -202,6 +202,10 @@ impl RulesClassifier {
     pub fn mapping_count(&self) -> usize {
         self.mappings.values().map(|m| m.len()).sum()
     }
+
+    pub fn get_mappings(&self) -> &HashMap<String, HashMap<String, String>> {
+        &self.mappings
+    }
 }
 
 impl Default for RulesClassifier {

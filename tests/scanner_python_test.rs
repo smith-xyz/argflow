@@ -65,7 +65,7 @@ fn test_python_basic_crypto_pbkdf2() {
         .expect("Should find a call with resolved iterations");
 
     // Python pbkdf2_hmac: arg[3] = iterations, arg[4] = dklen
-    assert_eq!(literal_call.arguments[3].int_values, vec![10000]);
+    assert_eq!(literal_call.arguments[3].int_values, vec![100000]);
     assert_eq!(literal_call.arguments[4].int_values, vec![32]);
 }
 

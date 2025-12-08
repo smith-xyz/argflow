@@ -348,7 +348,13 @@ impl Scanner {
             for child in args.children(&mut cursor) {
                 // Skip punctuation (commas, parens)
                 if child.is_named() {
-                    let value = self.resolver.resolve(&child, ctx);
+                    // For Python keyword arguments (name=value), extract just the value
+                    let value_node = if child.kind() == "keyword_argument" {
+                        child.child_by_field_name("value").unwrap_or(child)
+                    } else {
+                        child
+                    };
+                    let value = self.resolver.resolve(&value_node, ctx);
                     arguments.push(value);
                 }
             }

@@ -1,6 +1,7 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnresolvedSource {
     FunctionParameter,
+    FunctionNotFound,
     ConfigValue,
     RuntimeValue,
     ExternalDependency,
@@ -17,6 +18,7 @@ impl UnresolvedSource {
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::FunctionParameter => "function_parameter",
+            Self::FunctionNotFound => "function_not_found",
             Self::ConfigValue => "config_value",
             Self::RuntimeValue => "runtime_value",
             Self::ExternalDependency => "external_dependency",

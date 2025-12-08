@@ -20,28 +20,23 @@
 pub mod literal;
 pub use literal::LiteralStrategy;
 
-// ============================================================================
-// TODO: STRATEGIES TO IMPLEMENT
-// Uncomment each module and use statement as they are completed.
-// ============================================================================
+pub mod unary;
+pub use unary::UnaryStrategy;
 
-// pub mod unary;
-// pub use unary::UnaryStrategy;
+pub mod binary;
+pub use binary::BinaryStrategy;
 
-// pub mod binary;
-// pub use binary::BinaryStrategy;
+pub mod identifier;
+pub use identifier::IdentifierStrategy;
 
-// pub mod identifier;
-// pub use identifier::IdentifierStrategy;
+pub mod selector;
+pub use selector::SelectorStrategy;
 
-// pub mod call;
-// pub use call::CallStrategy;
+pub mod index;
+pub use index::IndexStrategy;
 
-// pub mod selector;
-// pub use selector::SelectorStrategy;
+pub mod call;
+pub use call::CallStrategy;
 
-// pub mod index;
-// pub use index::IndexStrategy;
-
-// pub mod composite;
-// pub use composite::CompositeStrategy;
+pub mod composite;
+pub use composite::CompositeStrategy;

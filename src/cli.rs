@@ -33,6 +33,10 @@ pub struct Args {
     #[arg(short, long)]
     pub language: Option<Language>,
 
+    /// Include dependencies (vendor/, go mod cache, node_modules/, etc.)
+    #[arg(long)]
+    pub include_deps: bool,
+
     /// Increase verbosity (-v info, -vv debug, -vvv trace)
     #[arg(short, long, action = clap::ArgAction::Count)]
     pub verbose: u8,
@@ -192,6 +196,7 @@ mod tests {
             path: file_path,
             output: OutputFormat::Json,
             language: Some(Language::Go),
+            include_deps: false,
             verbose: 0,
             quiet: false,
         };
@@ -209,6 +214,7 @@ mod tests {
             path: file_path,
             output: OutputFormat::Json,
             language: Some(Language::Go),
+            include_deps: false,
             verbose: 0,
             quiet: false,
         };
@@ -222,6 +228,7 @@ mod tests {
             path: PathBuf::from("/nonexistent/path"),
             output: OutputFormat::Json,
             language: None,
+            include_deps: false,
             verbose: 0,
             quiet: false,
         };
@@ -235,6 +242,7 @@ mod tests {
             path: PathBuf::from("."),
             output: OutputFormat::Json,
             language: None,
+            include_deps: false,
             verbose: 2,
             quiet: false,
         };

@@ -60,7 +60,7 @@ fn test_go_basic_crypto_pbkdf2() {
         .expect("Should find a call with resolved iterations");
 
     // Go pbkdf2.Key: arg[2] = iterations, arg[3] = keyLen
-    assert_eq!(literal_call.arguments[2].int_values, vec![10000]);
+    assert_eq!(literal_call.arguments[2].int_values, vec![100000]);
     assert_eq!(literal_call.arguments[3].int_values, vec![32]);
 }
 

@@ -1,6 +1,6 @@
 //! Go literal resolution tests
 
-use super::test_utils::{get_first_arg_int, get_first_arg_string, is_arg_unresolved, scan_go};
+use super::test_utils::{get_first_arg_int, get_first_arg_string, scan_go};
 
 // =============================================================================
 // Integer Literals
@@ -72,22 +72,6 @@ func main() { pbkdf2.Key(p, s, 100_000, 32, h) }
 "#,
     );
     assert_eq!(get_first_arg_int(&result, 2), Some(100000));
-}
-
-#[test]
-fn test_negative_integer_needs_unary_strategy() {
-    let result = scan_go(
-        r#"
-package main
-import "golang.org/x/crypto/pbkdf2"
-func main() { pbkdf2.Key(p, s, -1, 32, h) }
-"#,
-    );
-    // -1 is a unary_expression, not resolved by LiteralStrategy
-    assert!(
-        is_arg_unresolved(&result, 2),
-        "Negative needs UnaryStrategy"
-    );
 }
 
 #[test]
