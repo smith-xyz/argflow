@@ -178,10 +178,10 @@ mod tests {
 
         for i in 0..MAX_FILE_CACHE_SIZE + 5 {
             let mut constants = HashMap::new();
-            constants.insert(format!("CONST_{}", i), crate::Value::resolved_int(i as i64));
+            constants.insert(format!("CONST_{i}"), crate::Value::resolved_int(i as i64));
 
             cache.add_file(
-                format!("/pkg/file_{}.go", i),
+                format!("/pkg/file_{i}.go"),
                 CachedFileEntry {
                     constants,
                     functions: HashMap::new(),

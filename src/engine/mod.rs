@@ -17,6 +17,14 @@ pub use sources::UnresolvedSource;
 pub use value::Value;
 
 use strategies::LiteralStrategy;
+// TODO: Uncomment as strategies are implemented
+// use strategies::UnaryStrategy;
+// use strategies::BinaryStrategy;
+// use strategies::IdentifierStrategy;
+// use strategies::CallStrategy;
+// use strategies::SelectorStrategy;
+// use strategies::IndexStrategy;
+// use strategies::CompositeStrategy;
 use tree_sitter::Node;
 
 const DEFAULT_MAX_DEPTH: usize = 50;
@@ -35,9 +43,25 @@ pub struct Resolver {
 impl Resolver {
     pub fn new() -> Self {
         Self {
-            strategies: vec![Box::new(LiteralStrategy::new())],
+            strategies: Self::default_strategies(),
             max_depth: DEFAULT_MAX_DEPTH,
         }
+    }
+
+    /// Returns the default strategy chain in order of complexity.
+    /// Uncomment strategies as they are implemented.
+    fn default_strategies() -> Vec<Box<dyn Strategy>> {
+        vec![
+            // Order matters: simpler strategies first
+            Box::new(LiteralStrategy::new()),
+            // Box::new(UnaryStrategy::new()),
+            // Box::new(BinaryStrategy::new()),
+            // Box::new(IdentifierStrategy::new()),
+            // Box::new(CallStrategy::new()),
+            // Box::new(SelectorStrategy::new()),
+            // Box::new(IndexStrategy::new()),
+            // Box::new(CompositeStrategy::new()),
+        ]
     }
 
     pub fn builder() -> ResolverBuilder {
@@ -125,7 +149,7 @@ impl ResolverBuilder {
 
     pub fn build(mut self) -> Resolver {
         if self.include_defaults && self.strategies.is_empty() {
-            self.strategies.push(Box::new(LiteralStrategy::new()));
+            self.strategies = Resolver::default_strategies();
         }
 
         Resolver {

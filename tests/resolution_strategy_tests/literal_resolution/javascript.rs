@@ -141,16 +141,14 @@ fn test_algorithm_strings() {
         let source = format!(
             r#"
 const crypto = require('crypto');
-const key = crypto.pbkdf2Sync(password, salt, 10000, 32, '{}');
-"#,
-            algo
+const key = crypto.pbkdf2Sync(password, salt, 10000, 32, '{algo}');
+"#
         );
         let result = scan_javascript(&source);
         assert_eq!(
             get_first_arg_string(&result, 4),
             Some(algo.to_string()),
-            "Algorithm: {}",
-            algo
+            "Algorithm: {algo}"
         );
     }
 }

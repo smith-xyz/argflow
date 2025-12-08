@@ -32,6 +32,14 @@ pub struct Args {
     /// Language (auto-detected if not specified)
     #[arg(short, long)]
     pub language: Option<Language>,
+
+    /// Increase verbosity (-v info, -vv debug, -vvv trace)
+    #[arg(short, long, action = clap::ArgAction::Count)]
+    pub verbose: u8,
+
+    /// Suppress all output except errors
+    #[arg(short, long)]
+    pub quiet: bool,
 }
 
 impl Args {
@@ -184,6 +192,8 @@ mod tests {
             path: file_path,
             output: OutputFormat::Json,
             language: Some(Language::Go),
+            verbose: 0,
+            quiet: false,
         };
 
         assert!(args.validate().is_ok());
@@ -199,6 +209,8 @@ mod tests {
             path: file_path,
             output: OutputFormat::Json,
             language: Some(Language::Go),
+            verbose: 0,
+            quiet: false,
         };
 
         assert!(args.validate().is_ok());
@@ -210,8 +222,23 @@ mod tests {
             path: PathBuf::from("/nonexistent/path"),
             output: OutputFormat::Json,
             language: None,
+            verbose: 0,
+            quiet: false,
         };
 
         assert!(args.validate().is_err());
+    }
+
+    #[test]
+    fn test_verbose_flag_incremental() {
+        let args = Args {
+            path: PathBuf::from("."),
+            output: OutputFormat::Json,
+            language: None,
+            verbose: 2,
+            quiet: false,
+        };
+
+        assert_eq!(args.verbose, 2);
     }
 }

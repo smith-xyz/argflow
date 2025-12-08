@@ -122,12 +122,11 @@ fn test_common_key_sizes() {
             r#"
 package main
 import "golang.org/x/crypto/pbkdf2"
-func main() {{ pbkdf2.Key(p, s, 10000, {}, h) }}
-"#,
-            size
+func main() {{ pbkdf2.Key(p, s, 10000, {size}, h) }}
+"#
         );
         let result = scan_go(&source);
-        assert_eq!(get_first_arg_int(&result, 3), Some(size), "{} bits", bits);
+        assert_eq!(get_first_arg_int(&result, 3), Some(size), "{bits} bits");
     }
 }
 

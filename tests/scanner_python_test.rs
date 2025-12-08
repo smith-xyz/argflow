@@ -24,7 +24,7 @@ fn parse_python(source: &str) -> tree_sitter::Tree {
 fn scan_python_file(project: &str, file_path: &str) -> crypto_extractor_core::scanner::ScanResult {
     let full_path = python_fixtures_path().join(project).join(file_path);
     let source = std::fs::read_to_string(&full_path)
-        .unwrap_or_else(|_| panic!("Failed to read: {}/{}", project, file_path));
+        .unwrap_or_else(|_| panic!("Failed to read: {project}/{file_path}"));
     let tree = parse_python(&source);
     let scanner = Scanner::new();
     scanner.scan_tree(

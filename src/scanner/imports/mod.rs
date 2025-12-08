@@ -1,15 +1,6 @@
-//! Import tracking for accurate classification lookups.
-//!
-//! This module extracts import declarations from source files and builds
-//! a mapping from short package names to full import paths.
-//!
-//! Language-specific extraction is delegated to sub-modules.
-
-mod go;
-mod python;
+// TODO: Consider moving ImportMap to a top-level `types` module since it's not scanner-specific
 
 use std::collections::HashMap;
-use tree_sitter::Tree;
 
 #[derive(Debug, Clone, Default)]
 pub struct ImportMap {
@@ -48,27 +39,6 @@ impl ImportMap {
     }
 }
 
-pub fn extract_imports(tree: &Tree, source: &[u8], language: &str) -> ImportMap {
-    match language {
-        "go" => go::extract(tree, source),
-        "python" | "py" => python::extract(tree, source),
-        _ => ImportMap::new(),
-    }
-}
-
-pub fn unquote_string(s: &str) -> String {
-    let s = s.trim();
-    let is_quoted = (s.starts_with('"') && s.ends_with('"'))
-        || (s.starts_with('\'') && s.ends_with('\''))
-        || (s.starts_with('`') && s.ends_with('`'));
-
-    if is_quoted && s.len() >= 2 {
-        s[1..s.len() - 1].to_string()
-    } else {
-        s.to_string()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -88,13 +58,5 @@ mod tests {
         let imports = ImportMap::new();
         assert_eq!(imports.get("nonexistent"), None);
         assert_eq!(imports.resolve("nonexistent"), None);
-    }
-
-    #[test]
-    fn test_unquote_string() {
-        assert_eq!(unquote_string("\"hello\""), "hello");
-        assert_eq!(unquote_string("'hello'"), "hello");
-        assert_eq!(unquote_string("`hello`"), "hello");
-        assert_eq!(unquote_string("hello"), "hello");
     }
 }

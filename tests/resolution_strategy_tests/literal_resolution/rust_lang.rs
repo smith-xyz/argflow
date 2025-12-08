@@ -111,17 +111,15 @@ fn test_various_type_suffixes() {
             r#"
 fn cipher(val: i128) {{}}
 fn main() {{
-    cipher({});
+    cipher({suffix});
 }}
-"#,
-            suffix
+"#
         );
         let result = scan_rust(&source);
         assert_eq!(
             get_first_arg_int(&result, 0),
             Some(expected),
-            "Suffix: {}",
-            suffix
+            "Suffix: {suffix}"
         );
     }
 }
@@ -189,17 +187,15 @@ fn test_algorithm_strings() {
             r#"
 fn hash(algorithm: &str) {{}}
 fn main() {{
-    hash("{}");
+    hash("{algo}");
 }}
-"#,
-            algo
+"#
         );
         let result = scan_rust(&source);
         assert_eq!(
             get_first_arg_string(&result, 0),
             Some(algo.to_string()),
-            "Algorithm: {}",
-            algo
+            "Algorithm: {algo}"
         );
     }
 }
@@ -235,12 +231,11 @@ fn test_common_key_sizes() {
             r#"
 fn cipher(key_size: usize) {{}}
 fn main() {{
-    cipher({});
+    cipher({size});
 }}
-"#,
-            size
+"#
         );
         let result = scan_rust(&source);
-        assert_eq!(get_first_arg_int(&result, 0), Some(size), "{} bits", bits);
+        assert_eq!(get_first_arg_int(&result, 0), Some(size), "{bits} bits");
     }
 }

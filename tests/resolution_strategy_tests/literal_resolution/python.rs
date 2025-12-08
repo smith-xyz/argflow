@@ -130,16 +130,14 @@ fn test_algorithm_strings() {
         let source = format!(
             r#"
 import hashlib
-hashlib.pbkdf2_hmac('{}', password, salt, 10000)
-"#,
-            algo
+hashlib.pbkdf2_hmac('{algo}', password, salt, 10000)
+"#
         );
         let result = scan_python(&source);
         assert_eq!(
             get_first_arg_string(&result, 0),
             Some(algo.to_string()),
-            "Algorithm: {}",
-            algo
+            "Algorithm: {algo}"
         );
     }
 }

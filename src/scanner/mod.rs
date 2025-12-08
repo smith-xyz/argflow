@@ -2,10 +2,13 @@ mod imports;
 mod patterns;
 
 use std::collections::HashMap;
+use tracing::{debug, trace, warn};
 use tree_sitter::{Node, Tree};
 
 use crate::engine::{Context, NodeCategory, Resolver, Value};
-pub use imports::{extract_imports, ImportMap};
+use crate::query::QueryEngine;
+use crate::utils::{extract_last_segment, unquote_string};
+pub use imports::ImportMap;
 pub use patterns::default_patterns;
 
 /// Trait for matching function calls to crypto patterns.
@@ -82,6 +85,7 @@ pub struct CryptoCall {
     pub import_path: Option<String>,
     pub arguments: Vec<Value>,
     pub raw_text: String,
+    pub language: String,
 }
 
 impl CryptoCall {
@@ -89,21 +93,6 @@ impl CryptoCall {
         match &self.package {
             Some(pkg) => format!("{}.{}", pkg, self.function_name),
             None => self.function_name.clone(),
-        }
-    }
-
-    pub fn normalized_api(&self) -> String {
-        let base = self
-            .import_path
-            .as_ref()
-            .or(self.package.as_ref())
-            .map(|s| s.as_str())
-            .unwrap_or("");
-
-        if base.is_empty() {
-            self.function_name.to_lowercase()
-        } else {
-            format!("{}.{}", base, self.function_name).to_lowercase()
         }
     }
 }
@@ -144,6 +133,7 @@ impl ScanResult {
 pub struct Scanner {
     resolver: Resolver,
     matcher: Box<dyn CryptoMatcher>,
+    query_engine: QueryEngine,
 }
 
 impl Scanner {
@@ -151,6 +141,7 @@ impl Scanner {
         Self {
             resolver: Resolver::new(),
             matcher: Box::new(PatternMatcher::default_patterns()),
+            query_engine: QueryEngine::new(),
         }
     }
 
@@ -158,6 +149,7 @@ impl Scanner {
         Self {
             resolver,
             matcher: Box::new(PatternMatcher::default_patterns()),
+            query_engine: QueryEngine::new(),
         }
     }
 
@@ -177,6 +169,9 @@ impl Scanner {
         file_path: &str,
         language: &str,
     ) -> ScanResult {
+        trace!(file_path, language, "scanning tree");
+
+        let source_str = std::str::from_utf8(source).unwrap_or("");
         let ctx = Context::new(
             tree,
             source,
@@ -185,11 +180,62 @@ impl Scanner {
             HashMap::new(),
         );
 
-        let imports = extract_imports(tree, source, language);
+        let imports = self.extract_imports_via_query(tree, source_str, language);
+        trace!(import_count = imports.len(), "extracted imports");
 
         let mut result = ScanResult::new(file_path.to_string());
         self.traverse_node(tree.root_node(), &ctx, &imports, &mut result);
+
+        debug!(
+            file_path,
+            calls = result.call_count(),
+            errors = result.errors.len(),
+            "scan complete"
+        );
         result
+    }
+
+    fn extract_imports_via_query(&self, tree: &Tree, source: &str, language: &str) -> ImportMap {
+        let mut imports = ImportMap::new();
+
+        let matches = match self
+            .query_engine
+            .query(language, "imports", tree.root_node(), source)
+        {
+            Ok(m) => m,
+            Err(e) => {
+                warn!(language, error = %e, "failed to extract imports");
+                return imports;
+            }
+        };
+
+        for m in matches {
+            let path = m.get("path").map(unquote_string);
+            let alias = m.get("alias");
+            let module = m.get("module");
+            let name = m.get("name");
+
+            match (path, module, name, alias) {
+                // from module import name (Python style)
+                (None, Some(mod_path), Some(imported_name), alias_opt) => {
+                    let key = alias_opt
+                        .map(|s| s.to_string())
+                        .unwrap_or_else(|| imported_name.to_string());
+                    let full_path = format!("{mod_path}.{imported_name}");
+                    imports.insert(key, full_path);
+                }
+                // Simple import: import "path" or import alias "path"
+                (Some(p), None, None, alias_opt) => {
+                    let short_name = alias_opt
+                        .map(|s| s.to_string())
+                        .unwrap_or_else(|| extract_last_segment(&p));
+                    imports.insert(short_name, p);
+                }
+                _ => {}
+            }
+        }
+
+        imports
     }
 
     fn traverse_node<'a>(
@@ -236,6 +282,7 @@ impl Scanner {
             import_path,
             arguments,
             raw_text,
+            language: ctx.language().to_string(),
         })
     }
 
@@ -367,9 +414,9 @@ func main() { pbkdf2.Key() }"#;
             import_path: Some("golang.org/x/crypto/pbkdf2".to_string()),
             arguments: vec![],
             raw_text: "pbkdf2.Key(...)".to_string(),
+            language: "go".to_string(),
         };
         assert_eq!(call.full_name(), "pbkdf2.Key");
-        assert_eq!(call.normalized_api(), "golang.org/x/crypto/pbkdf2.key");
     }
 
     #[test]
@@ -383,24 +430,9 @@ func main() { pbkdf2.Key() }"#;
             import_path: None,
             arguments: vec![],
             raw_text: "encrypt(...)".to_string(),
+            language: "go".to_string(),
         };
         assert_eq!(call.full_name(), "encrypt");
-        assert_eq!(call.normalized_api(), "encrypt");
-    }
-
-    #[test]
-    fn test_crypto_call_normalized_api_fallback() {
-        let call = CryptoCall {
-            file_path: "test.go".to_string(),
-            line: 10,
-            column: 5,
-            function_name: "Key".to_string(),
-            package: Some("pbkdf2".to_string()),
-            import_path: None, // No import path
-            arguments: vec![],
-            raw_text: "pbkdf2.Key(...)".to_string(),
-        };
-        assert_eq!(call.normalized_api(), "pbkdf2.key");
     }
 
     #[test]
@@ -418,6 +450,7 @@ func main() { pbkdf2.Key() }"#;
             import_path: None,
             arguments: vec![],
             raw_text: "test()".to_string(),
+            language: "go".to_string(),
         });
         assert_eq!(result.call_count(), 1);
 
@@ -551,7 +584,6 @@ func main() {
             call.import_path,
             Some("golang.org/x/crypto/pbkdf2".to_string())
         );
-        assert_eq!(call.normalized_api(), "golang.org/x/crypto/pbkdf2.key");
     }
 
     #[test]
@@ -576,7 +608,6 @@ func main() {
             call.import_path,
             Some("golang.org/x/crypto/pbkdf2".to_string())
         );
-        assert_eq!(call.normalized_api(), "golang.org/x/crypto/pbkdf2.key");
     }
 
     #[test]
@@ -638,7 +669,6 @@ key = hashlib.pbkdf2_hmac('sha256', password, salt, 100000)
         let call = &result.calls[0];
         assert_eq!(call.package, Some("hashlib".to_string()));
         assert_eq!(call.import_path, Some("hashlib".to_string()));
-        assert_eq!(call.normalized_api(), "hashlib.pbkdf2_hmac");
     }
 
     #[test]

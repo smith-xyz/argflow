@@ -1,0 +1,4 @@
+[submodule "classifier-rules"]
+	path = classifier-rules
+	url = git@github.com:smith-xyz/crypto-classifier-rules.git
+	branch = main
