@@ -8,6 +8,7 @@ pub enum OutputFormat {
     Cbom,
 }
 
+// make this a shared item somewhere else
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, ValueEnum)]
 pub enum Language {
     Go,
@@ -91,6 +92,26 @@ impl Language {
             Language::Typescript => "typescript",
         }
     }
+
+    pub fn classifier_rules_name(&self) -> &'static str {
+        match self {
+            Language::Go => "go",
+            Language::Python => "python",
+            Language::Rust => "rust",
+            Language::Javascript => "javascript",
+            Language::Typescript => "javascript",
+        }
+    }
+
+    pub fn path_separator(&self) -> &'static str {
+        match self {
+            Language::Rust => "::",
+            Language::Python => ".",
+            Language::Go => "/",
+            Language::Javascript => "/",
+            Language::Typescript => "/",
+        }
+    }
 }
 
 impl OutputFormat {
@@ -157,6 +178,24 @@ mod tests {
         assert_eq!(Language::Rust.as_str(), "rust");
         assert_eq!(Language::Javascript.as_str(), "javascript");
         assert_eq!(Language::Typescript.as_str(), "typescript");
+    }
+
+    #[test]
+    fn test_language_classifier_rules_name() {
+        assert_eq!(Language::Go.classifier_rules_name(), "go");
+        assert_eq!(Language::Python.classifier_rules_name(), "python");
+        assert_eq!(Language::Rust.classifier_rules_name(), "rust");
+        assert_eq!(Language::Javascript.classifier_rules_name(), "javascript");
+        assert_eq!(Language::Typescript.classifier_rules_name(), "javascript");
+    }
+
+    #[test]
+    fn test_language_path_separator() {
+        assert_eq!(Language::Rust.path_separator(), "::");
+        assert_eq!(Language::Python.path_separator(), ".");
+        assert_eq!(Language::Go.path_separator(), "/");
+        assert_eq!(Language::Javascript.path_separator(), "/");
+        assert_eq!(Language::Typescript.path_separator(), "/");
     }
 
     #[test]

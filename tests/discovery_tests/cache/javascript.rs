@@ -1,0 +1,42 @@
+//! JavaScript-specific cache tests
+
+use super::test_utils::*;
+use crate::discovery_tests::user_code::test_utils::get_javascript_fixture_path;
+use crypto_extractor_core::discovery::cache::DiscoveryCache;
+use crypto_extractor_core::discovery::languages::javascript::JavaScriptPackageLoader;
+use crypto_extractor_core::discovery::loader::PackageLoader;
+
+#[test]
+fn test_javascript_cache_functionality() {
+    use std::fs;
+    use std::io::Write;
+    use tempfile::TempDir;
+
+    let temp_dir = TempDir::new().unwrap();
+    let root = temp_dir.path();
+
+    fs::create_dir_all(root.join("node_modules/test")).unwrap();
+    fs::File::create(root.join("node_modules/test/index.js"))
+        .unwrap()
+        .write_all(b"module.exports = {};")
+        .unwrap();
+
+    let loader = JavaScriptPackageLoader;
+    let mut cache1 = DiscoveryCache::default();
+    let mut cache2 = DiscoveryCache::default();
+
+    let files1 = loader
+        .load_dependencies(root, &mut cache1)
+        .expect("Failed to load dependencies");
+
+    if files1.is_empty() {
+        println!("NOTE: No dependencies found - skipping cache test");
+        return;
+    }
+
+    let files2 = loader
+        .load_dependencies(root, &mut cache2)
+        .expect("Failed to load dependencies");
+
+    assert_cache_consistency(&files1, &files2);
+}

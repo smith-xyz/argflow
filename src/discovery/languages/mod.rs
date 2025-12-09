@@ -5,8 +5,14 @@ use crate::discovery::filter::CryptoFileFilter;
 use crate::discovery::loader::PackageLoader;
 
 pub mod go;
+pub mod javascript;
+pub mod python;
+pub mod rust;
 
 pub use go::{GoCryptoFilter, GoPackageLoader};
+pub use javascript::{JavaScriptCryptoFilter, JavaScriptPackageLoader};
+pub use python::{PythonCryptoFilter, PythonPackageLoader};
+pub use rust::{RustCryptoFilter, RustPackageLoader};
 
 pub trait LanguageModule: Send + Sync {
     fn create_loader(&self) -> Box<dyn PackageLoader>;
@@ -29,6 +35,9 @@ impl LanguageRegistry {
         };
 
         registry.register(Box::new(go::GoModule));
+        registry.register(Box::new(python::PythonModule));
+        registry.register(Box::new(javascript::JavaScriptModule));
+        registry.register(Box::new(rust::RustModule));
         registry
     }
 

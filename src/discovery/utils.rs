@@ -1,7 +1,11 @@
+use std::collections::HashSet;
+use std::fs;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
+use crate::cli::Language;
 use crate::discovery::loader::LoadError;
+use serde::Deserialize;
 
 pub fn walk_source_files(
     root: &Path,
@@ -53,6 +57,46 @@ pub fn walk_source_files(
     }
 
     Ok(files)
+}
+
+#[derive(Debug, Deserialize)]
+struct MappingsFile {
+    mappings: std::collections::HashMap<String, std::collections::HashMap<String, String>>,
+}
+
+pub fn load_stdlib_from_mappings(
+    language: Language,
+    known_stdlib: &[&str],
+) -> Result<HashSet<String>, LoadError> {
+    let rules_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("classifier-rules");
+    let mappings_path = rules_dir
+        .join(language.classifier_rules_name())
+        .join("mappings.json");
+
+    if !mappings_path.exists() {
+        return Err(LoadError::PackageManager(format!(
+            "mappings.json not found at {}",
+            mappings_path.display()
+        )));
+    }
+
+    let content = fs::read_to_string(&mappings_path)
+        .map_err(|e| LoadError::PackageManager(format!("Failed to read mappings.json: {e}")))?;
+    let file: MappingsFile = serde_json::from_str(&content)
+        .map_err(|e| LoadError::PackageManager(format!("Failed to parse mappings.json: {e}")))?;
+
+    let known_stdlib_set: HashSet<&str> = known_stdlib.iter().copied().collect();
+    let separator = language.path_separator();
+
+    let mut packages = HashSet::new();
+    for import_path in file.mappings.keys() {
+        let root_package = import_path.split(separator).next().unwrap_or(import_path);
+        if known_stdlib_set.contains(root_package) {
+            packages.insert(root_package.to_string());
+        }
+    }
+
+    Ok(packages)
 }
 
 #[cfg(test)]
