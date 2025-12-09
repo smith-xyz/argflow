@@ -2,6 +2,12 @@
 name = "crypto-extractor-core"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+authors = ["crypto-extractor-core contributors"]
+repository = "https://github.com/smith-xyz/crypto-extractor-core"
+description = "Universal cryptographic parameter extractor for multi-language codebases"
+keywords = ["crypto", "security", "static-analysis", "sbom", "cbom"]
+categories = ["development-tools", "security"]
 
 [[bin]]
 name = "crypto-extractor"
