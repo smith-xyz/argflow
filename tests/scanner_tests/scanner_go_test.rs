@@ -4,14 +4,8 @@
 //! Fixtures: tests/fixtures/go/
 
 use crypto_extractor_core::scanner::Scanner;
-use std::path::PathBuf;
 
-fn go_fixtures_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests")
-        .join("fixtures")
-        .join("go")
-}
+use crate::fixtures::get_test_fixture_path;
 
 fn parse_go(source: &str) -> tree_sitter::Tree {
     let mut parser = tree_sitter::Parser::new();
@@ -22,7 +16,9 @@ fn parse_go(source: &str) -> tree_sitter::Tree {
 }
 
 fn scan_go_file(project: &str, file_path: &str) -> crypto_extractor_core::scanner::ScanResult {
-    let full_path = go_fixtures_path().join(project).join(file_path);
+    let full_path = get_test_fixture_path("go", None)
+        .join(project)
+        .join(file_path);
     let source = std::fs::read_to_string(&full_path)
         .unwrap_or_else(|_| panic!("Failed to read: {project}/{file_path}"));
     let tree = parse_go(&source);
@@ -62,6 +58,36 @@ fn test_go_basic_crypto_pbkdf2() {
     // Go pbkdf2.Key: arg[2] = iterations, arg[3] = keyLen
     assert_eq!(literal_call.arguments[2].int_values, vec![100000]);
     assert_eq!(literal_call.arguments[3].int_values, vec![32]);
+}
+
+#[test]
+fn test_go_basic_crypto_rand() {
+    let result = scan_go_file("basic-crypto", "pkg/rand/rand.go");
+
+    // Go: crypto/rand.Int
+    let rand_int_calls: Vec<_> = result
+        .calls
+        .iter()
+        .filter(|c| c.function_name == "Int" && c.package.as_deref() == Some("rand"))
+        .collect();
+
+    assert_eq!(
+        rand_int_calls.len(),
+        2,
+        "Should find 2 crypto rand.Int calls"
+    );
+
+    let rand_prime_calls: Vec<_> = result
+        .calls
+        .iter()
+        .filter(|c| c.function_name == "Prime" && c.package.as_deref() == Some("rand"))
+        .collect();
+
+    assert_eq!(
+        rand_prime_calls.len(),
+        1,
+        "Should find 2 crypto rand.Prime calls"
+    );
 }
 
 #[test]

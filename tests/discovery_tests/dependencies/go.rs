@@ -1,7 +1,8 @@
 //! Go-specific dependency discovery tests
 
+use crate::fixtures::get_test_fixture_path;
+
 use super::test_utils::*;
-use crate::discovery_tests::user_code::test_utils::get_go_fixture_path;
 use crypto_extractor_core::discovery::cache::DiscoveryCache;
 use crypto_extractor_core::discovery::languages::go::GoPackageLoader;
 use crypto_extractor_core::discovery::loader::PackageLoader;
@@ -9,7 +10,7 @@ use crypto_extractor_core::discovery::SourceType;
 
 #[test]
 fn test_go_dependency_discovery() {
-    let test_app_path = get_go_fixture_path("discovery-test-app");
+    let test_app_path = get_test_fixture_path("go", Some("discovery-test-app"));
     let loader = GoPackageLoader;
     let mut cache = DiscoveryCache::default();
     let dep_files = loader
@@ -98,7 +99,7 @@ fn test_go_vendor_as_dependency() {
 
 #[test]
 fn test_go_stdlib_files_included() {
-    let test_app_path = get_go_fixture_path("discovery-test-app");
+    let test_app_path = get_test_fixture_path("go", Some("discovery-test-app"));
     let loader = GoPackageLoader;
     let mut cache = DiscoveryCache::default();
 

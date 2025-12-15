@@ -4,14 +4,14 @@ use super::test_utils::*;
 use crate::discovery_tests::dependencies::test_utils::{
     get_dependency_files, get_stdlib_files, get_user_code_files,
 };
-use crate::discovery_tests::user_code::test_utils::get_go_fixture_path;
+use crate::fixtures::get_test_fixture_path;
 use crypto_extractor_core::discovery::cache::DiscoveryCache;
 use crypto_extractor_core::discovery::languages::go::GoPackageLoader;
 use crypto_extractor_core::discovery::loader::PackageLoader;
 
 #[test]
 fn test_go_source_type_tagging() {
-    let test_app_path = get_go_fixture_path("discovery-test-app");
+    let test_app_path = get_test_fixture_path("go", Some("discovery-test-app"));
     let loader = GoPackageLoader;
     let mut cache = DiscoveryCache::default();
 
@@ -37,7 +37,7 @@ fn test_go_source_type_tagging() {
 
 #[test]
 fn test_go_source_type_counts() {
-    let test_app_path = get_go_fixture_path("discovery-test-app");
+    let test_app_path = get_test_fixture_path("go", Some("discovery-test-app"));
     let loader = GoPackageLoader;
     let mut cache = DiscoveryCache::default();
 

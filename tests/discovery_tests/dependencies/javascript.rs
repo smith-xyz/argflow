@@ -1,6 +1,5 @@
 //! JavaScript-specific dependency discovery tests
 
-use crate::discovery_tests::user_code::test_utils::get_javascript_fixture_path;
 use crypto_extractor_core::discovery::cache::DiscoveryCache;
 use crypto_extractor_core::discovery::languages::javascript::JavaScriptPackageLoader;
 use crypto_extractor_core::discovery::loader::PackageLoader;

@@ -72,7 +72,7 @@ fn main() { pbkdf2::derive(alg, 10000, salt, password, 32 * 8); }
     );
     // Note: the position depends on how ring::pbkdf2 signature is defined
     // This test verifies the expression resolves
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 #[test]
@@ -218,7 +218,7 @@ fn main() {
 "#,
     );
     // The comparison is in a separate let binding, just verify the call works
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 // =============================================================================

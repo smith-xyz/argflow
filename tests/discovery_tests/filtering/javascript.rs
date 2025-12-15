@@ -2,7 +2,7 @@
 
 use super::test_utils::*;
 use crate::discovery_tests::user_code::test_utils::{
-    assert_file_found, assert_file_not_found, get_file_names, get_javascript_fixture_path,
+    assert_file_found, assert_file_not_found, get_file_names,
 };
 use crypto_extractor_core::discovery::languages::javascript::{
     JavaScriptCryptoFilter, JavaScriptPackageLoader,

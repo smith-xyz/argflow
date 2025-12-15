@@ -2,7 +2,7 @@
 
 use super::test_utils::combine_user_and_dependencies;
 use crate::discovery_tests::filtering::test_utils::filter_crypto_files;
-use crate::discovery_tests::user_code::test_utils::get_python_fixture_path;
+use crate::fixtures::get_test_fixture_path;
 use crypto_extractor_core::discovery::cache::DiscoveryCache;
 use crypto_extractor_core::discovery::languages::python::{
     PythonCryptoFilter, PythonPackageLoader,
@@ -11,7 +11,7 @@ use crypto_extractor_core::discovery::loader::PackageLoader;
 
 #[test]
 fn test_python_user_and_dependencies() {
-    let test_app_path = get_python_fixture_path("basic-crypto");
+    let test_app_path = get_test_fixture_path("python", Some("basic-crypto"));
     let loader = PythonPackageLoader;
     let filter = PythonCryptoFilter;
 

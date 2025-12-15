@@ -2,8 +2,9 @@
 
 use super::test_utils::*;
 use crate::discovery_tests::user_code::test_utils::{
-    assert_file_found, assert_file_not_found, get_file_names, get_python_fixture_path,
+    assert_file_found, assert_file_not_found, get_file_names,
 };
+use crate::fixtures::get_test_fixture_path;
 use crypto_extractor_core::discovery::languages::python::{
     PythonCryptoFilter, PythonPackageLoader,
 };
@@ -11,7 +12,7 @@ use crypto_extractor_core::discovery::loader::PackageLoader;
 
 #[test]
 fn test_python_crypto_filter() {
-    let test_app_path = get_python_fixture_path("basic-crypto");
+    let test_app_path = get_test_fixture_path("python", Some("basic-crypto"));
     let loader = PythonPackageLoader;
     let filter = PythonCryptoFilter;
 

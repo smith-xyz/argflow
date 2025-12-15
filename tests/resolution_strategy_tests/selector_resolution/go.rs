@@ -268,7 +268,7 @@ func test() { pbkdf2.Key(cfg.pass, cfg.salt, cfg.iterations, cfg.keyLen, hash.Ne
     for i in 0..4 {
         assert!(is_arg_unresolved(&result, i));
         let expr = get_arg_expression(&result, i);
-        assert!(expr.is_some(), "Arg {} should have expression", i);
+        assert!(expr.is_some(), "Arg {i} should have expression");
     }
 }
 

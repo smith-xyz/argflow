@@ -416,7 +416,7 @@ func main() { pbkdf2.Key(p, s, 10000, 32, 1 != 0 && 2 != 0) }
     );
     // The && expression should resolve - outer is the logical and
     // We need to check that we're getting the right expression
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 #[test]
@@ -428,7 +428,7 @@ import "golang.org/x/crypto/pbkdf2"
 func main() { pbkdf2.Key(p, s, 10000, 32, 0 == 0 || 1 == 0) }
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 // =============================================================================

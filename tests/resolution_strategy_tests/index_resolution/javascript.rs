@@ -318,5 +318,5 @@ crypto.pbkdf2Sync(password, salt, [[10000, 20000], [30000, 40000]][0][1], 32, 's
 "#,
     );
     // Nested array access - may or may not resolve depending on implementation depth
-    assert!(result.calls.len() >= 1, "Call detected");
+    assert!(!result.calls.is_empty(), "call detected");
 }

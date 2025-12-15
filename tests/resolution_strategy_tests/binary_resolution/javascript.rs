@@ -212,7 +212,7 @@ crypto.pbkdf2Sync(p, s, 10000, 32, 10 == 10);
 "#,
     );
     // Note: JavaScript == is different from ===, but we handle both
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 #[test]
@@ -224,7 +224,7 @@ crypto.pbkdf2Sync(p, s, 10000, 32, 10 === 10);
 "#,
     );
     // === might not be in our operator list, but the call should still be detected
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 // =============================================================================

@@ -1,12 +1,14 @@
 //! Go-specific user code discovery tests
 
+use crate::fixtures::get_test_fixture_path;
+
 use super::test_utils::*;
 use crypto_extractor_core::discovery::languages::go::GoPackageLoader;
 use crypto_extractor_core::discovery::loader::PackageLoader;
 
 #[test]
 fn test_go_user_code_discovery() {
-    let test_app_path = get_go_fixture_path("discovery-test-app");
+    let test_app_path = get_test_fixture_path("go", Some("discovery-test-app"));
     let loader = GoPackageLoader;
     let files = loader
         .load_user_code(&test_app_path)
@@ -81,6 +83,6 @@ fn test_go_excluded_directories() {
         println!(
             "NOTE: Vendor files found in user code scan (vendor is not excluded from user code)"
         );
-        println!("      Vendor files: {:?}", vendor_in_user_code);
+        println!("      Vendor files: {vendor_in_user_code:?}");
     }
 }

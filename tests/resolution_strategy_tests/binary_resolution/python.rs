@@ -102,7 +102,7 @@ PBKDF2HMAC(10000, 256 // 8)
     );
     // Python uses // for integer division
     // Note: tree-sitter may parse // differently
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 #[test]
@@ -114,7 +114,7 @@ PBKDF2HMAC(100 / 0, 32)
 "#,
     );
     // Division by zero should be unresolved or error
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 // =============================================================================

@@ -17,7 +17,7 @@ fn main() {
 }
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 #[test]
@@ -31,7 +31,7 @@ fn main() {
 }
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 // =============================================================================
@@ -49,7 +49,7 @@ fn main() {
 }
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 #[test]
@@ -64,7 +64,7 @@ fn main() {
 }
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 // =============================================================================
@@ -86,7 +86,7 @@ fn main() {
 }
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 #[test]
@@ -104,7 +104,7 @@ fn main() {
 }
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 #[test]
@@ -123,7 +123,7 @@ fn main() {
 }
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 // =============================================================================
@@ -141,7 +141,7 @@ fn main() {
 }
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 // =============================================================================
@@ -160,7 +160,7 @@ fn main() {
 }
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 // =============================================================================
@@ -178,7 +178,7 @@ fn main() {
 }
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 #[test]
@@ -192,7 +192,7 @@ fn main() {
 }
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 // =============================================================================
@@ -210,7 +210,7 @@ fn main() {
 }
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 #[test]
@@ -224,7 +224,7 @@ fn main() {
 }
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 // =============================================================================
@@ -284,7 +284,7 @@ fn main() {
 }
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 // =============================================================================
@@ -303,5 +303,5 @@ fn main() {
 }
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }

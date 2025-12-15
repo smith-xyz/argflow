@@ -39,7 +39,7 @@ salt = bytearray([0xDE, 0xAD, 0xBE, 0xEF])
 kdf = PBKDF2HMAC(algorithm="sha256", length=32, salt=salt, iterations=100000)
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 // =============================================================================
@@ -56,7 +56,7 @@ kdf = PBKDF2HMAC(algorithm="sha256", length=key_sizes[0], salt=b'salt', iteratio
 "#,
     );
     // Tuple indexed access
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 // =============================================================================
@@ -72,7 +72,7 @@ config = {"iterations": 100000, "key_size": 32}
 kdf = PBKDF2HMAC(algorithm="sha256", length=config["key_size"], salt=b'salt', iterations=config["iterations"])
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 // =============================================================================
@@ -89,7 +89,7 @@ kdf = PBKDF2HMAC(algorithm="sha256", length=32, salt=salt, iterations=100000)
 "#,
     );
     // List comprehension - complex expression
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 // =============================================================================
@@ -116,7 +116,7 @@ config = {}
 kdf = PBKDF2HMAC(algorithm="sha256", length=32, salt=b'salt', iterations=100000)
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 // =============================================================================
@@ -132,7 +132,7 @@ keys = [[1, 2], [3, 4]]
 kdf = PBKDF2HMAC(algorithm="sha256", length=32, salt=bytes(keys[0]), iterations=100000)
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 // =============================================================================
@@ -148,7 +148,7 @@ salt = bytes([0xDE, 0xAD, 0xBE, 0xEF])
 kdf = PBKDF2HMAC(algorithm="sha256", length=32, salt=salt, iterations=100000)
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 #[test]
@@ -160,7 +160,7 @@ algorithms = ["sha256", "sha384", "sha512"]
 kdf = PBKDF2HMAC(algorithm=algorithms[0], length=32, salt=b'salt', iterations=100000)
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 // =============================================================================
@@ -176,7 +176,7 @@ config = [100000, "sha256", 32]
 kdf = PBKDF2HMAC(algorithm=config[1], length=config[2], salt=b'salt', iterations=config[0])
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 // =============================================================================
@@ -193,5 +193,5 @@ kdf = PBKDF2HMAC(algorithm="sha256", length=32, salt=b'salt', iterations=100000)
 "#,
     );
     // Set exists but not used as argument
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }

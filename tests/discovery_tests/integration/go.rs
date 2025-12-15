@@ -5,14 +5,14 @@ use crate::discovery_tests::dependencies::test_utils::{
     get_dependency_files, get_stdlib_files, get_user_code_files,
 };
 use crate::discovery_tests::filtering::test_utils::filter_crypto_files;
-use crate::discovery_tests::user_code::test_utils::get_go_fixture_path;
+use crate::fixtures::get_test_fixture_path;
 use crypto_extractor_core::discovery::cache::DiscoveryCache;
 use crypto_extractor_core::discovery::languages::go::{GoCryptoFilter, GoPackageLoader};
 use crypto_extractor_core::discovery::loader::PackageLoader;
 
 #[test]
 fn test_go_user_and_dependencies() {
-    let test_app_path = get_go_fixture_path("discovery-test-app");
+    let test_app_path = get_test_fixture_path("go", Some("discovery-test-app"));
     let loader = GoPackageLoader;
     let filter = GoCryptoFilter;
 
@@ -61,7 +61,7 @@ fn test_go_user_and_dependencies() {
 
 #[test]
 fn test_go_go_jose_imported() {
-    let test_app_path = get_go_fixture_path("discovery-test-app");
+    let test_app_path = get_test_fixture_path("go", Some("discovery-test-app"));
     let loader = GoPackageLoader;
     let filter = GoCryptoFilter;
 
@@ -119,7 +119,7 @@ fn test_go_go_jose_imported() {
 
 #[test]
 fn test_go_dependencies_included_in_scan() {
-    let test_app_path = get_go_fixture_path("discovery-test-app");
+    let test_app_path = get_test_fixture_path("go", Some("discovery-test-app"));
     let loader = GoPackageLoader;
     let filter = GoCryptoFilter;
     let mut cache = DiscoveryCache::default();
@@ -236,7 +236,7 @@ fn test_go_dependencies_included_in_scan() {
 
 #[test]
 fn test_go_no_unnecessary_skipping() {
-    let test_app_path = get_go_fixture_path("discovery-test-app");
+    let test_app_path = get_test_fixture_path("go", Some("discovery-test-app"));
     let loader = GoPackageLoader;
     let filter = GoCryptoFilter;
     let mut cache = DiscoveryCache::default();

@@ -78,7 +78,7 @@ fn main() {
 "#,
     );
     // This tests that the scanner detects the call
-    assert!(result.calls.len() >= 1, "Call detected");
+    assert!(!result.calls.is_empty(), "call detected");
 }
 
 #[test]
@@ -92,7 +92,7 @@ fn main() {
 "#,
     );
     // Array as part of slice reference
-    assert!(result.calls.len() >= 1, "Call detected");
+    assert!(!result.calls.is_empty(), "call detected");
 }
 
 // =============================================================================

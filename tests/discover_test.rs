@@ -5,6 +5,4 @@
 //! appropriate module in `discovery_tests/`.
 
 mod discovery_tests;
-
-// Re-export all tests for backward compatibility
-pub use discovery_tests::*;
+mod fixtures;

@@ -15,7 +15,7 @@ const sizes = [16, 24, 32];
 crypto.pbkdf2Sync(password, salt, 100000, sizes[0], 'sha256');
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 #[test]
@@ -27,7 +27,7 @@ const salt = new Uint8Array([0xDE, 0xAD, 0xBE, 0xEF]);
 crypto.pbkdf2Sync(password, salt, 100000, 32, 'sha256');
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 #[test]
@@ -39,7 +39,7 @@ const salt = Buffer.from([0x01, 0x02, 0x03]);
 crypto.pbkdf2Sync(password, salt, 100000, 32, 'sha256');
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 // =============================================================================
@@ -55,7 +55,7 @@ const config = { iterations: 100000, keyLen: 32 };
 crypto.pbkdf2Sync(password, salt, config.iterations, config.keyLen, 'sha256');
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 #[test]
@@ -66,7 +66,7 @@ const crypto = require('crypto');
 crypto.createCipheriv('aes-256-gcm', key, iv, { authTagLength: 16 });
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 // =============================================================================
@@ -82,7 +82,7 @@ const [iter, keyLen] = [100000, 32];
 crypto.pbkdf2Sync(password, salt, iter, keyLen, 'sha256');
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 #[test]
@@ -94,7 +94,7 @@ const { iterations, keyLength } = { iterations: 100000, keyLength: 32 };
 crypto.pbkdf2Sync(password, salt, iterations, keyLength, 'sha256');
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 // =============================================================================
@@ -111,7 +111,7 @@ crypto.pbkdf2Sync(password, salt, ...base, 'sha256');
 "#,
     );
     // Spread operator - complex
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 // =============================================================================
@@ -127,7 +127,7 @@ const empty = [];
 crypto.pbkdf2Sync(password, salt, 100000, 32, 'sha256');
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 #[test]
@@ -138,7 +138,7 @@ const crypto = require('crypto');
 crypto.createCipheriv('aes-256-gcm', key, iv, {});
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 // =============================================================================
@@ -154,7 +154,7 @@ const configs = [[100000, 32], [200000, 64]];
 crypto.pbkdf2Sync(password, salt, configs[0][0], configs[0][1], 'sha256');
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 #[test]
@@ -166,7 +166,7 @@ const config = { pbkdf2: { iterations: 100000, keyLen: 32 } };
 crypto.pbkdf2Sync(password, salt, config.pbkdf2.iterations, config.pbkdf2.keyLen, 'sha256');
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 // =============================================================================
@@ -185,7 +185,7 @@ const options = {
 crypto.createCipheriv('aes-256-gcm', key, iv, options);
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 #[test]
@@ -197,7 +197,7 @@ const algorithms = ['aes-128-gcm', 'aes-256-gcm', 'chacha20-poly1305'];
 crypto.createCipheriv(algorithms[1], key, iv);
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 // =============================================================================
@@ -213,7 +213,7 @@ const iv = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
 crypto.createCipheriv('aes-256-gcm', key, iv);
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 // =============================================================================
@@ -230,7 +230,7 @@ const algorithms = [`${prefix}-128-gcm`, `${prefix}-256-gcm`];
 crypto.createCipheriv(algorithms[0], key, iv);
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 // =============================================================================
@@ -247,7 +247,7 @@ const config = { [key]: 100000 };
 crypto.pbkdf2Sync(password, salt, config.iterations, 32, 'sha256');
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 // =============================================================================
@@ -265,5 +265,5 @@ const config = { iterations, keyLength };
 crypto.pbkdf2Sync(password, salt, config.iterations, config.keyLength, 'sha256');
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }

@@ -4,14 +4,8 @@
 //! Fixtures: tests/fixtures/python/
 
 use crypto_extractor_core::scanner::Scanner;
-use std::path::PathBuf;
 
-fn python_fixtures_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests")
-        .join("fixtures")
-        .join("python")
-}
+use crate::fixtures::get_test_fixture_path;
 
 fn parse_python(source: &str) -> tree_sitter::Tree {
     let mut parser = tree_sitter::Parser::new();
@@ -22,7 +16,9 @@ fn parse_python(source: &str) -> tree_sitter::Tree {
 }
 
 fn scan_python_file(project: &str, file_path: &str) -> crypto_extractor_core::scanner::ScanResult {
-    let full_path = python_fixtures_path().join(project).join(file_path);
+    let full_path = get_test_fixture_path("python", None)
+        .join(project)
+        .join(file_path);
     let source = std::fs::read_to_string(&full_path)
         .unwrap_or_else(|_| panic!("Failed to read: {project}/{file_path}"));
     let tree = parse_python(&source);

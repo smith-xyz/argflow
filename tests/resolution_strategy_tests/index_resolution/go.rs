@@ -220,7 +220,7 @@ func main() { pbkdf2.Key(p, s, []int{10000, 20000}[1+0], 32, h) }
     );
     // Binary expression as index - could be resolved but complex
     // Current implementation may or may not resolve this
-    assert!(result.calls.len() >= 1, "Call detected");
+    assert!(!result.calls.is_empty(), "call detected");
 }
 
 // =============================================================================

@@ -229,10 +229,9 @@ result = pbkdf2_hmac(cfg.algorithm, cfg.password, cfg.salt, cfg.iterations)
     for i in 0..4 {
         assert!(
             is_arg_unresolved(&result, i),
-            "Arg {} should be unresolved",
-            i
+            "Arg {i} should be unresolved"
         );
         let expr = get_arg_expression(&result, i);
-        assert!(expr.is_some(), "Arg {} should have expression", i);
+        assert!(expr.is_some(), "Arg {i} should have expression");
     }
 }

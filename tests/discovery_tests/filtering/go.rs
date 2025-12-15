@@ -2,14 +2,15 @@
 
 use super::test_utils::*;
 use crate::discovery_tests::user_code::test_utils::{
-    assert_file_found, assert_file_not_found, get_file_names, get_go_fixture_path,
+    assert_file_found, assert_file_not_found, get_file_names,
 };
+use crate::fixtures::get_test_fixture_path;
 use crypto_extractor_core::discovery::languages::go::{GoCryptoFilter, GoPackageLoader};
 use crypto_extractor_core::discovery::loader::PackageLoader;
 
 #[test]
 fn test_go_crypto_filter() {
-    let test_app_path = get_go_fixture_path("discovery-test-app");
+    let test_app_path = get_test_fixture_path("go", Some("discovery-test-app"));
     let loader = GoPackageLoader;
     let filter = GoCryptoFilter;
 
@@ -31,7 +32,7 @@ fn test_go_crypto_filter() {
 
 #[test]
 fn test_go_crypto_filter_exact_count() {
-    let test_app_path = get_go_fixture_path("discovery-test-app");
+    let test_app_path = get_test_fixture_path("go", Some("discovery-test-app"));
     let loader = GoPackageLoader;
     let filter = GoCryptoFilter;
 

@@ -34,7 +34,7 @@ kdf = PBKDF2HMAC(algorithm="sha256", length=32, salt=salt, iterations=100000)
 "#,
     );
     // Python uses bytes([...]) which is a call, not a pure list literal
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 #[test]
@@ -47,7 +47,7 @@ crypto.pbkdf2Sync(password, salt, 100000, 32, 'sha256');
 "#,
     );
     // JS uses Buffer.from([...]) which wraps the array
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 #[test]
@@ -61,7 +61,7 @@ fn main() {
 }
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 // =============================================================================
@@ -93,7 +93,7 @@ salt = bytes([0xDE, 0xAD, 0xBE, 0xEF])
 kdf = PBKDF2HMAC(algorithm="sha256", length=32, salt=salt, iterations=100000)
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 #[test]
@@ -105,7 +105,7 @@ const salt = Buffer.from([0xDE, 0xAD, 0xBE, 0xEF]);
 crypto.pbkdf2Sync(password, salt, 100000, 32, 'sha256');
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 #[test]
@@ -119,7 +119,7 @@ fn main() {
 }
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 // =============================================================================
@@ -137,7 +137,7 @@ func main() { pbkdf2.Key(p, s, 10000, 32, algorithms[0]) }
 "#,
     );
     // String array exists, indexed access
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 #[test]
@@ -149,7 +149,7 @@ algorithms = ["sha256", "sha384", "sha512"]
 kdf = PBKDF2HMAC(algorithm=algorithms[0], length=32, salt=b'salt', iterations=100000)
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 #[test]
@@ -161,7 +161,7 @@ const algorithms = ['sha256', 'sha384', 'sha512'];
 crypto.pbkdf2Sync(password, salt, 100000, 32, algorithms[0]);
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 #[test]
@@ -194,7 +194,7 @@ var cfg = Config{Iterations: 100000, KeyLen: 32}
 func main() { pbkdf2.Key(p, s, cfg.Iterations, cfg.KeyLen, h) }
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 #[test]
@@ -206,7 +206,7 @@ config = {"iterations": 100000, "key_len": 32}
 kdf = PBKDF2HMAC(algorithm="sha256", length=config["key_len"], salt=b'salt', iterations=config["iterations"])
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 #[test]
@@ -218,7 +218,7 @@ const config = { iterations: 100000, keyLen: 32 };
 crypto.pbkdf2Sync(password, salt, config.iterations, config.keyLen, 'sha256');
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 #[test]
@@ -233,7 +233,7 @@ fn main() {
 }
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 // =============================================================================
@@ -249,7 +249,7 @@ import "golang.org/x/crypto/pbkdf2"
 func main() { pbkdf2.Key([]byte{}, s, 10000, 32, h) }
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 #[test]
@@ -260,7 +260,7 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 kdf = PBKDF2HMAC(algorithm="sha256", length=32, salt=b'', iterations=100000)
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 #[test]
@@ -272,7 +272,7 @@ const empty = [];
 crypto.pbkdf2Sync(password, Buffer.from(empty), 100000, 32, 'sha256');
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 #[test]
@@ -286,7 +286,7 @@ fn main() {
 }
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }
 
 // =============================================================================
@@ -325,5 +325,5 @@ const config = {
 crypto.pbkdf2Sync(password, salt, config.iterations, config.keyLen, config.algorithm);
 "#,
     );
-    assert!(result.calls.len() >= 1);
+    assert!(!result.calls.is_empty());
 }

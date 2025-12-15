@@ -1,14 +1,15 @@
 //! Go-specific cache tests
 
+use crate::fixtures::get_test_fixture_path;
+
 use super::test_utils::*;
-use crate::discovery_tests::user_code::test_utils::get_go_fixture_path;
 use crypto_extractor_core::discovery::cache::DiscoveryCache;
 use crypto_extractor_core::discovery::languages::go::GoPackageLoader;
 use crypto_extractor_core::discovery::loader::PackageLoader;
 
 #[test]
 fn test_go_cache_functionality() {
-    let test_app_path = get_go_fixture_path("discovery-test-app");
+    let test_app_path = get_test_fixture_path("go", Some("discovery-test-app"));
     let loader = GoPackageLoader;
     let mut cache1 = DiscoveryCache::default();
     let mut cache2 = DiscoveryCache::default();
