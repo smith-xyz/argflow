@@ -9,6 +9,7 @@ pub mod engine;
 pub mod error;
 pub mod logging;
 pub mod mappings;
+pub mod output;
 pub mod query;
 pub mod scanner;
 pub mod utils;
@@ -19,6 +20,7 @@ pub use classifier::{
 pub use engine::{Context, Resolver, Value};
 pub use error::{Error, IoError, ParserError, QueryError};
 pub use logging::Verbosity;
+pub use output::{ConfigFinding, Finding, JsonOutput, OutputFormatter};
 pub use scanner::{CryptoCall, CryptoMatcher, ImportMap, PatternMatcher, ScanResult, Scanner};
 
 #[cfg(test)]

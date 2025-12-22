@@ -1,15 +1,16 @@
 use anyhow::{Context as AnyhowContext, Result};
 use clap::Parser;
-use crypto_extractor_core::classifier::{classify_call, RulesClassifier};
+use crypto_extractor_core::classifier::RulesClassifier;
 use crypto_extractor_core::cli::{self, OutputFormat};
 use crypto_extractor_core::discovery::cache::DiscoveryCache;
 use crypto_extractor_core::discovery::filter::CryptoFileFilter;
 use crypto_extractor_core::discovery::languages::go::{GoCryptoFilter, GoPackageLoader};
 use crypto_extractor_core::discovery::loader::PackageLoader;
 use crypto_extractor_core::logging::{self, Verbosity};
-use crypto_extractor_core::scanner::{CryptoCall, CryptoConfig, ScanResult, Scanner};
-use serde::Serialize;
-use std::path::Path;
+use crypto_extractor_core::output::OutputFormatter;
+use crypto_extractor_core::scanner::{ScanResult, Scanner};
+use std::io::Write;
+use std::path::{Path, PathBuf};
 use tracing::{debug, info, trace, warn};
 
 fn main() -> Result<()> {
@@ -62,11 +63,19 @@ fn main() -> Result<()> {
             language,
             &scanner,
             &classifier,
-            args.output,
+            args.format,
+            args.output_file.as_ref(),
             args.include_deps,
         )?;
     } else {
-        scan_file(&args.path, language, &scanner, &classifier, args.output)?;
+        scan_file(
+            &args.path,
+            language,
+            &scanner,
+            &classifier,
+            args.format,
+            args.output_file.as_ref(),
+        )?;
     }
 
     Ok(())
@@ -78,6 +87,7 @@ fn scan_file(
     scanner: &Scanner,
     classifier: &RulesClassifier,
     output_format: OutputFormat,
+    output_file: Option<&PathBuf>,
 ) -> Result<()> {
     debug!(file = %path.display(), "scanning file");
 
@@ -96,7 +106,7 @@ fn scan_file(
 
     info!(calls = result.call_count(), "scan complete");
 
-    output_results(&[result], classifier, output_format)?;
+    output_results(&[result], classifier, output_format, output_file)?;
     Ok(())
 }
 
@@ -106,6 +116,7 @@ fn scan_directory(
     scanner: &Scanner,
     classifier: &RulesClassifier,
     output_format: OutputFormat,
+    output_file: Option<&PathBuf>,
     include_deps: bool,
 ) -> Result<()> {
     debug!(directory = %path.display(), include_deps, "scanning directory");
@@ -180,7 +191,7 @@ fn scan_directory(
             let total_calls: usize = results.iter().map(|r| r.call_count()).sum();
             info!(files = results.len(), calls = total_calls, "scan complete");
 
-            output_results(&results, classifier, output_format)?;
+            output_results(&results, classifier, output_format, output_file)?;
         }
         _ => {
             warn!(
@@ -213,207 +224,26 @@ fn parse_source(source: &str, language: cli::Language) -> Result<tree_sitter::Tr
         .context("Failed to parse source code")
 }
 
-#[derive(Serialize)]
-struct JsonOutput {
-    files_scanned: usize,
-    total_calls: usize,
-    total_configs: usize,
-    findings: Vec<Finding>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    configs: Vec<ConfigFinding>,
-}
-
-#[derive(Serialize)]
-struct Finding {
-    file: String,
-    line: usize,
-    column: usize,
-    function: String,
-    package: Option<String>,
-    import_path: Option<String>,
-    full_name: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    algorithm: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    finding_type: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    operation: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    primitive: Option<String>,
-    arguments: Vec<ArgumentValue>,
-    raw_text: String,
-}
-
-#[derive(Serialize)]
-struct ArgumentValue {
-    index: usize,
-    resolved: bool,
-    value: serde_json::Value,
-}
-
-#[derive(Serialize)]
-struct ConfigFinding {
-    file: String,
-    line: usize,
-    column: usize,
-    struct_type: String,
-    full_type: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    package: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    import_path: Option<String>,
-    fields: Vec<ConfigFieldValue>,
-    raw_text: String,
-}
-
-#[derive(Serialize)]
-struct ConfigFieldValue {
-    field_name: String,
-    resolved: bool,
-    value: serde_json::Value,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    classification_key: Option<String>,
-}
-
 fn output_results(
     results: &[ScanResult],
     classifier: &RulesClassifier,
     format: OutputFormat,
+    output_file: Option<&PathBuf>,
 ) -> Result<()> {
-    let total_calls: usize = results.iter().map(|r| r.call_count()).sum();
-    let total_configs: usize = results.iter().map(|r| r.config_count()).sum();
+    let output = OutputFormatter::format(results, classifier, format)?;
 
-    let findings: Vec<Finding> = results
-        .iter()
-        .flat_map(|r| r.calls.iter().map(|call| call_to_finding(call, classifier)))
-        .collect();
-
-    let configs: Vec<ConfigFinding> = results
-        .iter()
-        .flat_map(|r| r.configs.iter().map(config_to_finding))
-        .collect();
-
-    let output = JsonOutput {
-        files_scanned: results.len(),
-        total_calls,
-        total_configs,
-        findings,
-        configs,
-    };
-
-    match format {
-        OutputFormat::Json => {
-            trace!("outputting JSON format");
-            println!("{}", serde_json::to_string_pretty(&output)?);
+    match output_file {
+        Some(path) => {
+            let mut file = std::fs::File::create(path)
+                .with_context(|| format!("Failed to create output file: {}", path.display()))?;
+            file.write_all(output.as_bytes())
+                .with_context(|| format!("Failed to write to output file: {}", path.display()))?;
+            info!(path = %path.display(), "wrote output to file");
         }
-        OutputFormat::Cbom => {
-            warn!("CBOM output not yet implemented, using JSON");
-            println!("{}", serde_json::to_string_pretty(&output)?);
+        None => {
+            println!("{output}");
         }
     }
 
     Ok(())
-}
-
-fn call_to_finding(call: &CryptoCall, classifier: &RulesClassifier) -> Finding {
-    let classification = classify_call(call, classifier);
-
-    let arguments: Vec<ArgumentValue> = call
-        .arguments
-        .iter()
-        .enumerate()
-        .map(|(i, v)| ArgumentValue {
-            index: i,
-            resolved: v.is_resolved,
-            value: value_to_json(v),
-        })
-        .collect();
-
-    Finding {
-        file: call.file_path.clone(),
-        line: call.line,
-        column: call.column,
-        function: call.function_name.clone(),
-        package: call.package.clone(),
-        import_path: call.import_path.clone(),
-        full_name: call.full_name(),
-        algorithm: classification.algorithm,
-        finding_type: if classification.finding_type.is_empty() {
-            None
-        } else {
-            Some(classification.finding_type)
-        },
-        operation: if classification.operation.is_empty() {
-            None
-        } else {
-            Some(classification.operation)
-        },
-        primitive: classification.primitive,
-        arguments,
-        raw_text: call.raw_text.clone(),
-    }
-}
-
-fn config_to_finding(config: &CryptoConfig) -> ConfigFinding {
-    let fields: Vec<ConfigFieldValue> = config
-        .fields
-        .iter()
-        .map(|f| ConfigFieldValue {
-            field_name: f.field_name.clone(),
-            resolved: f.value.is_resolved,
-            value: value_to_json(&f.value),
-            classification_key: f.classification_key.clone(),
-        })
-        .collect();
-
-    ConfigFinding {
-        file: config.file_path.clone(),
-        line: config.line,
-        column: config.column,
-        struct_type: config.struct_type.clone(),
-        full_type: config.full_type(),
-        package: config.package.clone(),
-        import_path: config.import_path.clone(),
-        fields,
-        raw_text: config.raw_text.clone(),
-    }
-}
-
-fn value_to_json(value: &crypto_extractor_core::Value) -> serde_json::Value {
-    if !value.int_values.is_empty() {
-        if value.int_values.len() == 1 {
-            serde_json::Value::Number(value.int_values[0].into())
-        } else {
-            serde_json::Value::Array(
-                value
-                    .int_values
-                    .iter()
-                    .map(|&v| serde_json::Value::Number(v.into()))
-                    .collect(),
-            )
-        }
-    } else if !value.string_values.is_empty() {
-        if value.string_values.len() == 1 {
-            serde_json::Value::String(value.string_values[0].clone())
-        } else {
-            serde_json::Value::Array(
-                value
-                    .string_values
-                    .iter()
-                    .map(|s| serde_json::Value::String(s.clone()))
-                    .collect(),
-            )
-        }
-    } else if !value.expression.is_empty() {
-        serde_json::json!({
-            "expression": value.expression,
-            "partial": true
-        })
-    } else if !value.source.is_empty() {
-        serde_json::json!({
-            "unresolved": value.source
-        })
-    } else {
-        serde_json::Value::Null
-    }
 }

@@ -26,9 +26,13 @@ pub struct Args {
     #[arg(long, value_name = "PATH")]
     pub path: PathBuf,
 
+    /// Output file path (prints to stdout if not specified)
+    #[arg(short = 'O', long, value_name = "FILE")]
+    pub output_file: Option<PathBuf>,
+
     /// Output format (json, cbom)
-    #[arg(short, long, default_value = "json")]
-    pub output: OutputFormat,
+    #[arg(short = 'f', long, default_value = "json")]
+    pub format: OutputFormat,
 
     /// Language (auto-detected if not specified)
     #[arg(short, long)]
@@ -233,7 +237,8 @@ mod tests {
 
         let args = Args {
             path: file_path,
-            output: OutputFormat::Json,
+            output_file: None,
+            format: OutputFormat::Json,
             language: Some(Language::Go),
             include_deps: false,
             verbose: 0,
@@ -251,7 +256,8 @@ mod tests {
 
         let args = Args {
             path: file_path,
-            output: OutputFormat::Json,
+            output_file: None,
+            format: OutputFormat::Json,
             language: Some(Language::Go),
             include_deps: false,
             verbose: 0,
@@ -265,7 +271,8 @@ mod tests {
     fn test_args_validate_invalid_path() {
         let args = Args {
             path: PathBuf::from("/nonexistent/path"),
-            output: OutputFormat::Json,
+            output_file: None,
+            format: OutputFormat::Json,
             language: None,
             include_deps: false,
             verbose: 0,
@@ -279,7 +286,8 @@ mod tests {
     fn test_verbose_flag_incremental() {
         let args = Args {
             path: PathBuf::from("."),
-            output: OutputFormat::Json,
+            output_file: None,
+            format: OutputFormat::Json,
             language: None,
             include_deps: false,
             verbose: 2,

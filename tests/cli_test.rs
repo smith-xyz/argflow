@@ -14,7 +14,8 @@ fn test_cli_help() {
     assert!(stdout.contains("crypto-extractor"));
     assert!(stdout.contains("Cryptographic parameter extractor"));
     assert!(stdout.contains("--path"));
-    assert!(stdout.contains("--output"));
+    assert!(stdout.contains("--format"));
+    assert!(stdout.contains("--output-file"));
     assert!(stdout.contains("--language"));
 }
 
@@ -87,7 +88,7 @@ fn test_cli_invalid_output_format() {
             "--",
             "--path",
             file_path.to_str().unwrap(),
-            "--output",
+            "--format",
             "xml",
         ])
         .output()
@@ -117,7 +118,7 @@ fn test_cli_valid_args() {
             file_path.to_str().unwrap(),
             "--language",
             "go",
-            "--output",
+            "--format",
             "json",
         ])
         .output()
