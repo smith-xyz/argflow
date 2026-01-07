@@ -41,7 +41,7 @@ impl IndexStrategy {
             return ctx.parse_int_literal(&text);
         }
 
-        if kind == "parenthesized_expression" {
+        if ctx.is_node_category(kind, NodeCategory::ParenthesizedExpression) {
             if let Some(inner) = index_node.named_child(0) {
                 return Self::resolve_index_value(&inner, ctx);
             }

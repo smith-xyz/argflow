@@ -1,6 +1,6 @@
 //! Shared test utilities for integration tests
 
-use crypto_extractor_core::discovery::SourceFile;
+use argflow::discovery::SourceFile;
 
 pub fn combine_user_and_dependencies(
     user_files: Vec<SourceFile>,

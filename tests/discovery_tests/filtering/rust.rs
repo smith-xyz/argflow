@@ -4,8 +4,8 @@ use super::test_utils::*;
 use crate::discovery_tests::user_code::test_utils::{
     assert_file_found, assert_file_not_found, get_file_names,
 };
-use crypto_extractor_core::discovery::languages::rust::{RustCryptoFilter, RustPackageLoader};
-use crypto_extractor_core::discovery::loader::PackageLoader;
+use argflow::discovery::languages::rust::{RustImportFilter, RustPackageLoader};
+use argflow::discovery::loader::PackageLoader;
 
 #[test]
 fn test_rust_crypto_filter() {
@@ -27,19 +27,19 @@ fn test_rust_crypto_filter() {
         .unwrap();
 
     let loader = RustPackageLoader;
-    let filter = RustCryptoFilter;
+    let filter = RustImportFilter::from_bundled().expect("Failed to create filter");
 
     let all_files = loader
         .load_user_code(root)
         .expect("Failed to load user code");
 
-    let crypto_files = filter_crypto_files(all_files, &filter);
+    let crypto_files = filter_matching_files(all_files, &filter);
 
     if !crypto_files.is_empty() {
         let file_names = get_file_names(&crypto_files, root);
         assert_file_found(&file_names, "crypto.rs");
         assert_file_not_found(&file_names, "utils.rs");
     } else {
-        println!("NOTE: No crypto files found - this may be expected if classifier-rules/rust/mappings.json doesn't contain 'ring'");
+        println!("NOTE: No crypto files found - this may be expected if presets/crypto/rust/mappings.json doesn't contain 'ring'");
     }
 }

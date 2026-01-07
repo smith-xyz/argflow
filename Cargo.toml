@@ -1,20 +1,20 @@
 [package]
-name = "crypto-extractor-core"
+name = "argflow"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-authors = ["crypto-extractor-core contributors"]
-repository = "https://github.com/smith-xyz/crypto-extractor-core"
-description = "Universal cryptographic parameter extractor for multi-language codebases"
-keywords = ["crypto", "security", "static-analysis", "sbom", "cbom"]
-categories = ["development-tools", "security"]
+authors = ["argflow contributors"]
+repository = "https://github.com/smith-xyz/argflow"
+description = "Argument flow analyzer - trace where function arguments come from across multi-language codebases"
+keywords = ["static-analysis", "dataflow", "arguments", "parameters", "code-analysis"]
+categories = ["development-tools", "command-line-utilities"]
 
 [[bin]]
-name = "crypto-extractor"
+name = "argflow"
 path = "src/main.rs"
 
 [lib]
-name = "crypto_extractor_core"
+name = "argflow"
 path = "src/lib.rs"
 
 [dependencies]
@@ -50,4 +50,3 @@ walkdir = "2.4"
 [dev-dependencies]
 pretty_assertions = "1.4"
 tempfile = "3.10"
-

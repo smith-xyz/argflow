@@ -3,9 +3,9 @@
 //! Tests crypto detection and parameter resolution for Python code.
 //! Fixtures: tests/fixtures/python/
 
-use crypto_extractor_core::scanner::Scanner;
+use argflow::scanner::Scanner;
 
-use crate::fixtures::get_test_fixture_path;
+use crate::fixtures::{get_test_fixture_path, test_patterns};
 
 fn parse_python(source: &str) -> tree_sitter::Tree {
     let mut parser = tree_sitter::Parser::new();
@@ -15,14 +15,18 @@ fn parse_python(source: &str) -> tree_sitter::Tree {
     parser.parse(source, None).unwrap()
 }
 
-fn scan_python_file(project: &str, file_path: &str) -> crypto_extractor_core::scanner::ScanResult {
+fn create_scanner() -> Scanner {
+    Scanner::new().with_patterns(test_patterns())
+}
+
+fn scan_python_file(project: &str, file_path: &str) -> argflow::scanner::ScanResult {
     let full_path = get_test_fixture_path("python", None)
         .join(project)
         .join(file_path);
     let source = std::fs::read_to_string(&full_path)
         .unwrap_or_else(|_| panic!("Failed to read: {project}/{file_path}"));
     let tree = parse_python(&source);
-    let scanner = Scanner::new();
+    let scanner = create_scanner();
     scanner.scan_tree(
         &tree,
         source.as_bytes(),
@@ -31,9 +35,9 @@ fn scan_python_file(project: &str, file_path: &str) -> crypto_extractor_core::sc
     )
 }
 
-fn scan_python_inline(source: &str) -> crypto_extractor_core::scanner::ScanResult {
+fn scan_python_inline(source: &str) -> argflow::scanner::ScanResult {
     let tree = parse_python(source);
-    let scanner = Scanner::new();
+    let scanner = create_scanner();
     scanner.scan_tree(&tree, source.as_bytes(), "inline.py", "python")
 }
 

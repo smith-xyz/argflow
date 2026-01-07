@@ -1,6 +1,6 @@
 //! Shared test utilities for user code discovery tests
 
-use crypto_extractor_core::discovery::SourceFile;
+use argflow::discovery::SourceFile;
 use std::path::Path;
 
 pub fn get_file_names(files: &[SourceFile], base_path: &Path) -> Vec<String> {

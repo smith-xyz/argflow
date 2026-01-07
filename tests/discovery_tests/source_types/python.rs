@@ -2,9 +2,9 @@
 
 use super::test_utils::*;
 use crate::fixtures::get_test_fixture_path;
-use crypto_extractor_core::discovery::cache::DiscoveryCache;
-use crypto_extractor_core::discovery::languages::python::PythonPackageLoader;
-use crypto_extractor_core::discovery::loader::PackageLoader;
+use argflow::discovery::cache::DiscoveryCache;
+use argflow::discovery::languages::python::PythonPackageLoader;
+use argflow::discovery::loader::PackageLoader;
 
 #[test]
 fn test_python_source_type_tagging() {
@@ -26,7 +26,7 @@ fn test_python_source_type_tagging() {
     for file in &user_files {
         assert_eq!(
             file.language,
-            crypto_extractor_core::cli::Language::Python,
+            argflow::cli::Language::Python,
             "All files should be tagged with correct language"
         );
     }

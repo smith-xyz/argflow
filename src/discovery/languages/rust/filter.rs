@@ -1,10 +1,9 @@
 use std::collections::HashSet;
 use std::fs;
-use std::path::Path;
-use std::sync::OnceLock;
+use std::path::{Path, PathBuf};
 
 use crate::cli::Language;
-use crate::discovery::filter::{CryptoFileFilter, FilterError};
+use crate::discovery::filter::{FilterError, ImportFileFilter};
 use serde::Deserialize;
 
 use super::config::*;
@@ -14,44 +13,26 @@ struct MappingsFile {
     mappings: std::collections::HashMap<String, std::collections::HashMap<String, String>>,
 }
 
-static CRYPTO_IMPORT_PATTERNS: OnceLock<Result<Vec<String>, String>> = OnceLock::new();
-
-fn get_crypto_import_patterns() -> Result<&'static Vec<String>, &'static String> {
-    CRYPTO_IMPORT_PATTERNS
-        .get_or_init(load_import_patterns_from_mappings)
-        .as_ref()
+pub struct RustImportFilter {
+    import_patterns: Vec<String>,
 }
 
-fn load_import_patterns_from_mappings() -> Result<Vec<String>, String> {
-    let rules_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("classifier-rules");
-    let mappings_path = rules_dir.join("rust").join("mappings.json");
-
-    if !mappings_path.exists() {
-        return Err(format!(
-            "mappings.json not found at {}",
-            mappings_path.display()
-        ));
+impl RustImportFilter {
+    pub fn new(preset_paths: &[PathBuf]) -> Result<Self, FilterError> {
+        let import_patterns = load_import_patterns_from_presets(preset_paths, "rust")?;
+        Ok(Self { import_patterns })
     }
 
-    let content = fs::read_to_string(&mappings_path)
-        .map_err(|e| format!("Failed to read mappings.json: {e}"))?;
-    let file: MappingsFile = serde_json::from_str(&content)
-        .map_err(|e| format!("Failed to parse mappings.json: {e}"))?;
-
-    let mut patterns = HashSet::new();
-    for import_path in file.mappings.keys() {
-        patterns.insert(format!("use {import_path}"));
-        patterns.insert(format!("use {import_path}::"));
-        patterns.insert(format!("extern crate {import_path}"));
+    pub fn from_bundled() -> Result<Self, FilterError> {
+        let preset_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("presets")
+            .join("crypto");
+        Self::new(&[preset_dir])
     }
-
-    Ok(patterns.into_iter().collect())
 }
 
-pub struct RustCryptoFilter;
-
-impl CryptoFileFilter for RustCryptoFilter {
-    fn has_crypto_usage(&self, file_path: &Path) -> Result<bool, FilterError> {
+impl ImportFileFilter for RustImportFilter {
+    fn has_matching_imports(&self, file_path: &Path) -> Result<bool, FilterError> {
         let metadata = fs::metadata(file_path).map_err(|e| {
             FilterError::FileRead(format!(
                 "Failed to read metadata for {}: {}",
@@ -76,7 +57,10 @@ impl CryptoFileFilter for RustCryptoFilter {
             ))
         })?;
 
-        self.check_crypto_imports(&content)
+        Ok(self
+            .import_patterns
+            .iter()
+            .any(|pattern| content.contains(pattern)))
     }
 
     fn language(&self) -> Language {
@@ -84,15 +68,49 @@ impl CryptoFileFilter for RustCryptoFilter {
     }
 }
 
-impl RustCryptoFilter {
-    fn check_crypto_imports(&self, content: &str) -> Result<bool, FilterError> {
-        let patterns = get_crypto_import_patterns().map_err(|e| {
-            FilterError::FileRead(format!(
-                "Failed to load crypto import patterns from classifier-rules: {e}. \
-                 Ensure classifier-rules/rust/mappings.json exists and is valid."
-            ))
-        })?;
+fn load_import_patterns_from_presets(
+    preset_paths: &[PathBuf],
+    language: &str,
+) -> Result<Vec<String>, FilterError> {
+    let mut all_patterns = HashSet::new();
 
-        Ok(patterns.iter().any(|pattern| content.contains(pattern)))
+    for preset_path in preset_paths {
+        let mappings_path = preset_path.join(language).join("mappings.json");
+        if mappings_path.exists() {
+            let patterns = load_import_patterns_from_file(&mappings_path)?;
+            all_patterns.extend(patterns);
+        }
     }
+
+    if all_patterns.is_empty() {
+        return Err(FilterError::FileRead(format!(
+            "No {language} mappings found in any preset. Checked: {preset_paths:?}"
+        )));
+    }
+
+    Ok(all_patterns.into_iter().collect())
+}
+
+fn load_import_patterns_from_file(mappings_path: &Path) -> Result<Vec<String>, FilterError> {
+    let content = fs::read_to_string(mappings_path).map_err(|e| {
+        FilterError::FileRead(format!("Failed to read {}: {}", mappings_path.display(), e))
+    })?;
+
+    let file: MappingsFile = serde_json::from_str(&content).map_err(|e| {
+        FilterError::FileRead(format!(
+            "Failed to parse {}: {}",
+            mappings_path.display(),
+            e
+        ))
+    })?;
+
+    // Rust-specific import patterns
+    let mut patterns = HashSet::new();
+    for import_path in file.mappings.keys() {
+        patterns.insert(format!("use {import_path}"));
+        patterns.insert(format!("use {import_path}::"));
+        patterns.insert(format!("extern crate {import_path}"));
+    }
+
+    Ok(patterns.into_iter().collect())
 }

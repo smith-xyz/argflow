@@ -1,9 +1,9 @@
 //! JavaScript-specific source type tagging tests
 
 use super::test_utils::*;
-use crypto_extractor_core::discovery::cache::DiscoveryCache;
-use crypto_extractor_core::discovery::languages::javascript::JavaScriptPackageLoader;
-use crypto_extractor_core::discovery::loader::PackageLoader;
+use argflow::discovery::cache::DiscoveryCache;
+use argflow::discovery::languages::javascript::JavaScriptPackageLoader;
+use argflow::discovery::loader::PackageLoader;
 
 #[test]
 fn test_javascript_source_type_tagging() {
@@ -37,7 +37,7 @@ fn test_javascript_source_type_tagging() {
     for file in &user_files {
         assert_eq!(
             file.language,
-            crypto_extractor_core::cli::Language::Javascript,
+            argflow::cli::Language::Javascript,
             "All files should be tagged with correct language"
         );
     }

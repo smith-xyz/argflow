@@ -42,13 +42,13 @@ impl OutputFormatter {
             .flat_map(|r| {
                 r.calls
                     .iter()
-                    .map(|call| Finding::from_crypto_call(call, classifier))
+                    .map(|call| Finding::from_scanner_finding(call, classifier))
             })
             .collect();
 
         let configs: Vec<ConfigFinding> = results
             .iter()
-            .flat_map(|r| r.configs.iter().map(ConfigFinding::from_crypto_config))
+            .flat_map(|r| r.configs.iter().map(ConfigFinding::from_scanner_config))
             .collect();
 
         let total_findings = findings.len();

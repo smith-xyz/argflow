@@ -1,6 +1,8 @@
 //! Shared test utilities for literal resolution tests
 
-use crypto_extractor_core::scanner::{ScanResult, Scanner};
+use argflow::scanner::{ScanResult, Scanner};
+
+use crate::fixtures;
 
 /// Parse Go source code into a tree-sitter Tree
 pub fn parse_go(source: &str) -> tree_sitter::Tree {
@@ -38,28 +40,32 @@ pub fn parse_javascript(source: &str) -> tree_sitter::Tree {
     parser.parse(source, None).unwrap()
 }
 
+fn create_scanner() -> Scanner {
+    Scanner::new().with_patterns(fixtures::test_patterns())
+}
+
 /// Scan Go source code and return results
 pub fn scan_go(source: &str) -> ScanResult {
     let tree = parse_go(source);
-    Scanner::new().scan_tree(&tree, source.as_bytes(), "test.go", "go")
+    create_scanner().scan_tree(&tree, source.as_bytes(), "test.go", "go")
 }
 
 /// Scan Python source code and return results
 pub fn scan_python(source: &str) -> ScanResult {
     let tree = parse_python(source);
-    Scanner::new().scan_tree(&tree, source.as_bytes(), "test.py", "python")
+    create_scanner().scan_tree(&tree, source.as_bytes(), "test.py", "python")
 }
 
 /// Scan Rust source code and return results
 pub fn scan_rust(source: &str) -> ScanResult {
     let tree = parse_rust(source);
-    Scanner::new().scan_tree(&tree, source.as_bytes(), "test.rs", "rust")
+    create_scanner().scan_tree(&tree, source.as_bytes(), "test.rs", "rust")
 }
 
 /// Scan JavaScript source code and return results
 pub fn scan_javascript(source: &str) -> ScanResult {
     let tree = parse_javascript(source);
-    Scanner::new().scan_tree(&tree, source.as_bytes(), "test.js", "javascript")
+    create_scanner().scan_tree(&tree, source.as_bytes(), "test.js", "javascript")
 }
 
 /// Extract the first resolved integer argument at the given index

@@ -1,6 +1,6 @@
 //! Python binary resolution tests
 
-use super::test_utils::{get_arg_expression, get_first_arg_int, is_arg_unresolved, scan_python};
+use super::test_utils::{get_first_arg_int, scan_python};
 
 // =============================================================================
 // Addition Tests
@@ -268,11 +268,12 @@ PBKDF2HMAC(10000, 32 * 8)
 }
 
 // =============================================================================
-// Partial Resolution Tests
+// Binary Expression with Identifier Resolution
+// Binary strategy now properly resolves identifiers via the Resolver
 // =============================================================================
 
 #[test]
-fn test_unresolved_left_operand() {
+fn test_identifier_left_operand_resolved() {
     let result = scan_python(
         r#"
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
@@ -280,19 +281,16 @@ base = 100000
 PBKDF2HMAC(base + 10000, 32)
 "#,
     );
-    assert!(
-        is_arg_unresolved(&result, 0),
-        "Identifier needs identifier strategy"
-    );
+    // File-level var resolves via identifier strategy
     assert_eq!(
-        get_arg_expression(&result, 0),
-        Some("base + 10000".to_string()),
-        "Expression preserved"
+        get_first_arg_int(&result, 0),
+        Some(110000),
+        "base (100000) + 10000 = 110000"
     );
 }
 
 #[test]
-fn test_unresolved_right_operand() {
+fn test_identifier_right_operand_resolved() {
     let result = scan_python(
         r#"
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
@@ -300,14 +298,11 @@ extra = 10000
 PBKDF2HMAC(100000 + extra, 32)
 "#,
     );
-    assert!(
-        is_arg_unresolved(&result, 0),
-        "Identifier needs identifier strategy"
-    );
+    // File-level var resolves via identifier strategy
     assert_eq!(
-        get_arg_expression(&result, 0),
-        Some("100000 + extra".to_string()),
-        "Expression preserved"
+        get_first_arg_int(&result, 0),
+        Some(110000),
+        "100000 + extra (10000) = 110000"
     );
 }
 

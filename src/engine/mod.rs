@@ -76,6 +76,13 @@ impl Resolver {
             return Value::unextractable(UnresolvedSource::CycleDetected);
         }
 
+        // Unwrap parenthesized expressions - they're just wrappers
+        if ctx.is_node_category(node.kind(), NodeCategory::ParenthesizedExpression) {
+            if let Some(inner) = node.named_child(0) {
+                return self.resolve_with_depth(&inner, ctx, depth);
+            }
+        }
+
         if let Some(cached) = ctx.get_cached_value(node) {
             return cached;
         }

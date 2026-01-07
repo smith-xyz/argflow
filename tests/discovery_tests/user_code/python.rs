@@ -2,8 +2,8 @@
 
 use super::test_utils::*;
 use crate::fixtures::get_test_fixture_path;
-use crypto_extractor_core::discovery::languages::python::PythonPackageLoader;
-use crypto_extractor_core::discovery::loader::PackageLoader;
+use argflow::discovery::languages::python::PythonPackageLoader;
+use argflow::discovery::loader::PackageLoader;
 
 #[test]
 fn test_python_user_code_discovery() {

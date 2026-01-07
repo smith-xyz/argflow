@@ -7,8 +7,8 @@ pub mod utils;
 
 pub use cache::DiscoveryCache;
 pub use detector::LanguageDetector;
-pub use filter::CryptoFileFilter;
-pub use languages::{GoCryptoFilter, GoPackageLoader, LanguageModule, LanguageRegistry};
+pub use filter::ImportFileFilter;
+pub use languages::{GoImportFilter, GoPackageLoader, LanguageModule, LanguageRegistry};
 pub use loader::PackageLoader;
 pub use utils::walk_source_files;
 

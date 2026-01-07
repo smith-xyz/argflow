@@ -4,17 +4,17 @@ use super::test_utils::*;
 use crate::discovery_tests::dependencies::test_utils::{
     get_dependency_files, get_stdlib_files, get_user_code_files,
 };
-use crate::discovery_tests::filtering::test_utils::filter_crypto_files;
+use crate::discovery_tests::filtering::test_utils::filter_matching_files;
 use crate::fixtures::get_test_fixture_path;
-use crypto_extractor_core::discovery::cache::DiscoveryCache;
-use crypto_extractor_core::discovery::languages::go::{GoCryptoFilter, GoPackageLoader};
-use crypto_extractor_core::discovery::loader::PackageLoader;
+use argflow::discovery::cache::DiscoveryCache;
+use argflow::discovery::languages::go::{GoImportFilter, GoPackageLoader};
+use argflow::discovery::loader::PackageLoader;
 
 #[test]
 fn test_go_user_and_dependencies() {
     let test_app_path = get_test_fixture_path("go", Some("discovery-test-app"));
     let loader = GoPackageLoader;
-    let filter = GoCryptoFilter;
+    let filter = GoImportFilter::from_bundled().expect("Failed to create filter");
 
     let user_files = loader
         .load_user_code(&test_app_path)
@@ -32,18 +32,13 @@ fn test_go_user_and_dependencies() {
         "Should find some files (user code or dependencies)"
     );
 
-    let crypto_files = filter_crypto_files(all_files, &filter);
+    let crypto_files = filter_matching_files(all_files, &filter);
 
     assert!(!crypto_files.is_empty(), "Should find crypto files");
 
     let user_crypto_count = crypto_files
         .iter()
-        .filter(|f| {
-            matches!(
-                f.source_type,
-                crypto_extractor_core::discovery::SourceType::UserCode
-            )
-        })
+        .filter(|f| matches!(f.source_type, argflow::discovery::SourceType::UserCode))
         .count();
 
     let dep_crypto_count = crypto_files.len() - user_crypto_count;
@@ -63,13 +58,13 @@ fn test_go_user_and_dependencies() {
 fn test_go_go_jose_imported() {
     let test_app_path = get_test_fixture_path("go", Some("discovery-test-app"));
     let loader = GoPackageLoader;
-    let filter = GoCryptoFilter;
+    let filter = GoImportFilter::from_bundled().expect("Failed to create filter");
 
     let user_files = loader
         .load_user_code(&test_app_path)
         .expect("Failed to load user code");
 
-    let user_crypto_files = filter_crypto_files(user_files, &filter);
+    let user_crypto_files = filter_matching_files(user_files, &filter);
 
     let has_jose_import = user_crypto_files
         .iter()
@@ -90,7 +85,7 @@ fn test_go_go_jose_imported() {
         return;
     }
 
-    let crypto_dep_files = filter_crypto_files(dep_files, &filter);
+    let crypto_dep_files = filter_matching_files(dep_files, &filter);
 
     let go_jose_files: Vec<_> = crypto_dep_files
         .iter()
@@ -121,7 +116,7 @@ fn test_go_go_jose_imported() {
 fn test_go_dependencies_included_in_scan() {
     let test_app_path = get_test_fixture_path("go", Some("discovery-test-app"));
     let loader = GoPackageLoader;
-    let filter = GoCryptoFilter;
+    let filter = GoImportFilter::from_bundled().expect("Failed to create filter");
     let mut cache = DiscoveryCache::default();
 
     let user_files = loader
@@ -165,7 +160,7 @@ fn test_go_dependencies_included_in_scan() {
     println!("  Stdlib files: {}", stdlib_files.len());
     println!("  Third-party dependency files: {}", dependency_files.len());
 
-    let crypto_files = filter_crypto_files(all_files, &filter);
+    let crypto_files = filter_matching_files(all_files, &filter);
 
     assert!(
         !crypto_files.is_empty(),
@@ -238,7 +233,7 @@ fn test_go_dependencies_included_in_scan() {
 fn test_go_no_unnecessary_skipping() {
     let test_app_path = get_test_fixture_path("go", Some("discovery-test-app"));
     let loader = GoPackageLoader;
-    let filter = GoCryptoFilter;
+    let filter = GoImportFilter::from_bundled().expect("Failed to create filter");
     let mut cache = DiscoveryCache::default();
 
     let user_files = loader
@@ -256,7 +251,7 @@ fn test_go_no_unnecessary_skipping() {
         "Should find files - nothing should be unnecessarily skipped"
     );
 
-    let crypto_files = filter_crypto_files(all_files, &filter);
+    let crypto_files = filter_matching_files(all_files, &filter);
 
     assert!(
         !crypto_files.is_empty(),
@@ -265,12 +260,7 @@ fn test_go_no_unnecessary_skipping() {
 
     let user_crypto_count = crypto_files
         .iter()
-        .filter(|f| {
-            matches!(
-                f.source_type,
-                crypto_extractor_core::discovery::SourceType::UserCode
-            )
-        })
+        .filter(|f| matches!(f.source_type, argflow::discovery::SourceType::UserCode))
         .count();
 
     assert!(

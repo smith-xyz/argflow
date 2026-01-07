@@ -2,8 +2,8 @@ use std::path::Path;
 
 use crate::cli::Language;
 
-pub trait CryptoFileFilter: Send + Sync {
-    fn has_crypto_usage(&self, file_path: &Path) -> Result<bool, FilterError>;
+pub trait ImportFileFilter: Send + Sync {
+    fn has_matching_imports(&self, file_path: &Path) -> Result<bool, FilterError>;
 
     fn language(&self) -> Language;
 }
@@ -22,11 +22,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_crypto_file_filter_trait_compiles() {
+    fn test_import_file_filter_trait_compiles() {
         struct TestFilter;
 
-        impl CryptoFileFilter for TestFilter {
-            fn has_crypto_usage(&self, _file_path: &Path) -> Result<bool, FilterError> {
+        impl ImportFileFilter for TestFilter {
+            fn has_matching_imports(&self, _file_path: &Path) -> Result<bool, FilterError> {
                 Ok(false)
             }
 
@@ -37,7 +37,7 @@ mod tests {
 
         let filter = TestFilter;
         let file_path = std::path::PathBuf::from("/tmp/test.go");
-        assert!(filter.has_crypto_usage(&file_path).is_ok());
+        assert!(filter.has_matching_imports(&file_path).is_ok());
     }
 
     #[test]

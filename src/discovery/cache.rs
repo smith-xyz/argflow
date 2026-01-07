@@ -44,7 +44,7 @@ impl DiscoveryCache {
             .or_else(|_| std::env::var("USERPROFILE"))
             .map_err(|_| CacheError::CacheDir("Could not determine home directory".to_string()))?;
 
-        let cache_dir = PathBuf::from(home).join(".cache").join("crypto-extractor");
+        let cache_dir = PathBuf::from(home).join(".cache").join("argflow");
 
         Ok(cache_dir)
     }

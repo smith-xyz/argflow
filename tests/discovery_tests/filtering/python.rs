@@ -5,22 +5,20 @@ use crate::discovery_tests::user_code::test_utils::{
     assert_file_found, assert_file_not_found, get_file_names,
 };
 use crate::fixtures::get_test_fixture_path;
-use crypto_extractor_core::discovery::languages::python::{
-    PythonCryptoFilter, PythonPackageLoader,
-};
-use crypto_extractor_core::discovery::loader::PackageLoader;
+use argflow::discovery::languages::python::{PythonImportFilter, PythonPackageLoader};
+use argflow::discovery::loader::PackageLoader;
 
 #[test]
 fn test_python_crypto_filter() {
     let test_app_path = get_test_fixture_path("python", Some("basic-crypto"));
     let loader = PythonPackageLoader;
-    let filter = PythonCryptoFilter;
+    let filter = PythonImportFilter::from_bundled().expect("Failed to create filter");
 
     let all_files = loader
         .load_user_code(&test_app_path)
         .expect("Failed to load user code");
 
-    let crypto_files = filter_crypto_files(all_files, &filter);
+    let crypto_files = filter_matching_files(all_files, &filter);
 
     assert!(!crypto_files.is_empty(), "Should find crypto files");
 

@@ -3,9 +3,9 @@
 //! Tests crypto detection and parameter resolution for Go code.
 //! Fixtures: tests/fixtures/go/
 
-use crypto_extractor_core::scanner::Scanner;
+use argflow::scanner::Scanner;
 
-use crate::fixtures::get_test_fixture_path;
+use crate::fixtures::{get_test_fixture_path, test_patterns};
 
 fn parse_go(source: &str) -> tree_sitter::Tree {
     let mut parser = tree_sitter::Parser::new();
@@ -15,20 +15,24 @@ fn parse_go(source: &str) -> tree_sitter::Tree {
     parser.parse(source, None).unwrap()
 }
 
-fn scan_go_file(project: &str, file_path: &str) -> crypto_extractor_core::scanner::ScanResult {
+fn create_scanner() -> Scanner {
+    Scanner::new().with_patterns(test_patterns())
+}
+
+fn scan_go_file(project: &str, file_path: &str) -> argflow::scanner::ScanResult {
     let full_path = get_test_fixture_path("go", None)
         .join(project)
         .join(file_path);
     let source = std::fs::read_to_string(&full_path)
         .unwrap_or_else(|_| panic!("Failed to read: {project}/{file_path}"));
     let tree = parse_go(&source);
-    let scanner = Scanner::new();
+    let scanner = create_scanner();
     scanner.scan_tree(&tree, source.as_bytes(), &full_path.to_string_lossy(), "go")
 }
 
-fn scan_go_inline(source: &str) -> crypto_extractor_core::scanner::ScanResult {
+fn scan_go_inline(source: &str) -> argflow::scanner::ScanResult {
     let tree = parse_go(source);
-    let scanner = Scanner::new();
+    let scanner = create_scanner();
     scanner.scan_tree(&tree, source.as_bytes(), "inline.go", "go")
 }
 

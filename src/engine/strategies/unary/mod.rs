@@ -60,7 +60,7 @@ impl UnaryStrategy {
             return self.resolve(operand, ctx);
         }
 
-        if kind == "parenthesized_expression" {
+        if ctx.is_node_category(kind, NodeCategory::ParenthesizedExpression) {
             if let Some(inner) = operand.named_child(0) {
                 return self.resolve_operand(&inner, ctx);
             }

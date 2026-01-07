@@ -1,19 +1,17 @@
 //! Python-specific integration tests
 
 use super::test_utils::combine_user_and_dependencies;
-use crate::discovery_tests::filtering::test_utils::filter_crypto_files;
+use crate::discovery_tests::filtering::test_utils::filter_matching_files;
 use crate::fixtures::get_test_fixture_path;
-use crypto_extractor_core::discovery::cache::DiscoveryCache;
-use crypto_extractor_core::discovery::languages::python::{
-    PythonCryptoFilter, PythonPackageLoader,
-};
-use crypto_extractor_core::discovery::loader::PackageLoader;
+use argflow::discovery::cache::DiscoveryCache;
+use argflow::discovery::languages::python::{PythonImportFilter, PythonPackageLoader};
+use argflow::discovery::loader::PackageLoader;
 
 #[test]
 fn test_python_user_and_dependencies() {
     let test_app_path = get_test_fixture_path("python", Some("basic-crypto"));
     let loader = PythonPackageLoader;
-    let filter = PythonCryptoFilter;
+    let filter = PythonImportFilter::from_bundled().expect("Failed to create filter");
 
     let user_files = loader
         .load_user_code(&test_app_path)
@@ -31,18 +29,13 @@ fn test_python_user_and_dependencies() {
         "Should find some files (user code or dependencies)"
     );
 
-    let crypto_files = filter_crypto_files(all_files, &filter);
+    let crypto_files = filter_matching_files(all_files, &filter);
 
     assert!(!crypto_files.is_empty(), "Should find crypto files");
 
     let user_crypto_count = crypto_files
         .iter()
-        .filter(|f| {
-            matches!(
-                f.source_type,
-                crypto_extractor_core::discovery::SourceType::UserCode
-            )
-        })
+        .filter(|f| matches!(f.source_type, argflow::discovery::SourceType::UserCode))
         .count();
 
     println!("Complete scan results:");

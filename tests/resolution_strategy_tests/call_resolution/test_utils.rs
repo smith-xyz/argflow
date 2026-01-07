@@ -1,10 +1,12 @@
 //! Shared test utilities for call resolution tests
 
-use crypto_extractor_core::scanner::{default_patterns, ScanResult, Scanner};
-use crypto_extractor_core::Resolver;
+use argflow::scanner::{ScanResult, Scanner};
+use argflow::Resolver;
+
+use crate::fixtures;
 
 fn scanner_with_patterns() -> Scanner {
-    Scanner::with_resolver(Resolver::new()).with_patterns(default_patterns())
+    Scanner::with_resolver(Resolver::new()).with_patterns(fixtures::test_patterns())
 }
 
 pub fn parse_go(source: &str) -> tree_sitter::Tree {

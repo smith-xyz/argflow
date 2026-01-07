@@ -1,9 +1,9 @@
-//! Shared test utilities for crypto filtering tests
+//! Shared test utilities for import filtering tests
 
-use crypto_extractor_core::discovery::filter::CryptoFileFilter;
-use crypto_extractor_core::discovery::SourceFile;
+use argflow::discovery::filter::ImportFileFilter;
+use argflow::discovery::SourceFile;
 
-pub fn filter_crypto_files<F: CryptoFileFilter>(
+pub fn filter_matching_files<F: ImportFileFilter>(
     files: Vec<SourceFile>,
     filter: &F,
 ) -> Vec<SourceFile> {
@@ -11,9 +11,9 @@ pub fn filter_crypto_files<F: CryptoFileFilter>(
         .into_iter()
         .filter_map(|file| {
             filter
-                .has_crypto_usage(&file.path)
+                .has_matching_imports(&file.path)
                 .ok()
-                .and_then(|has_crypto| has_crypto.then_some(file))
+                .and_then(|has_match| has_match.then_some(file))
         })
         .collect()
 }

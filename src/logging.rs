@@ -35,7 +35,7 @@ impl Verbosity {
 
     fn to_filter(self) -> String {
         let level = self.to_level();
-        format!("crypto_extractor_core={level}")
+        format!("argflow={level}")
     }
 }
 

@@ -4,10 +4,8 @@ use super::test_utils::*;
 use crate::discovery_tests::user_code::test_utils::{
     assert_file_found, assert_file_not_found, get_file_names,
 };
-use crypto_extractor_core::discovery::languages::javascript::{
-    JavaScriptCryptoFilter, JavaScriptPackageLoader,
-};
-use crypto_extractor_core::discovery::loader::PackageLoader;
+use argflow::discovery::languages::javascript::{JavaScriptImportFilter, JavaScriptPackageLoader};
+use argflow::discovery::loader::PackageLoader;
 
 #[test]
 fn test_javascript_crypto_filter() {
@@ -29,13 +27,13 @@ fn test_javascript_crypto_filter() {
         .unwrap();
 
     let loader = JavaScriptPackageLoader;
-    let filter = JavaScriptCryptoFilter;
+    let filter = JavaScriptImportFilter::from_bundled().expect("Failed to create filter");
 
     let all_files = loader
         .load_user_code(root)
         .expect("Failed to load user code");
 
-    let crypto_files = filter_crypto_files(all_files, &filter);
+    let crypto_files = filter_matching_files(all_files, &filter);
 
     assert!(!crypto_files.is_empty(), "Should find crypto files");
 

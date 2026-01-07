@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use crate::cli::Language;
-use crate::discovery::filter::CryptoFileFilter;
+use crate::discovery::filter::ImportFileFilter;
 use crate::discovery::languages::LanguageModule;
 use crate::discovery::loader::PackageLoader;
 
@@ -10,7 +10,7 @@ pub mod deps;
 pub mod filter;
 pub mod loader;
 
-pub use filter::GoCryptoFilter;
+pub use filter::GoImportFilter;
 pub use loader::GoPackageLoader;
 
 pub struct GoModule;
@@ -20,8 +20,8 @@ impl LanguageModule for GoModule {
         Box::new(GoPackageLoader)
     }
 
-    fn create_filter(&self) -> Box<dyn CryptoFileFilter> {
-        Box::new(GoCryptoFilter)
+    fn create_filter(&self) -> Box<dyn ImportFileFilter> {
+        Box::new(GoImportFilter::from_bundled().expect("Failed to load bundled Go import filter"))
     }
 
     fn language(&self) -> Language {

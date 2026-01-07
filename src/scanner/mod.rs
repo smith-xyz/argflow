@@ -1,5 +1,4 @@
 mod imports;
-mod patterns;
 
 use std::collections::HashMap;
 use tracing::{debug, trace, warn};
@@ -9,15 +8,14 @@ use crate::engine::{Context, NodeCategory, Resolver, Value};
 use crate::query::QueryEngine;
 use crate::utils::{extract_last_segment, unquote_string};
 pub use imports::ImportMap;
-pub use patterns::default_patterns;
 
-/// Trait for matching function calls to crypto patterns.
+/// Trait for matching function calls to preset patterns.
 ///
 /// This abstraction allows swapping the matching strategy:
-/// - Default: Simple pattern matching against known crypto terms
-/// - Future: Classifier-based matching using `crypto-classifier-rules` submodule
-pub trait CryptoMatcher: Send + Sync {
-    fn is_crypto_call(
+/// - Default: Simple pattern matching against known terms
+/// - Mappings: Precise matching using `argflow-presets` submodule
+pub trait CallMatcher: Send + Sync {
+    fn matches(
         &self,
         function_name: &str,
         package: Option<&str>,
@@ -28,8 +26,8 @@ pub trait CryptoMatcher: Send + Sync {
 /// Mapping type: import_path -> (function_name -> classification_key)
 pub type MappingsMap = HashMap<String, HashMap<String, String>>;
 
-/// Mapping-based matcher. Only matches calls that have explicit mappings in classifier-rules.
-/// This provides high precision - only known crypto APIs are detected.
+/// Mapping-based matcher. Only matches calls that have explicit mappings in presets.
+/// This provides high precision - only known APIs are detected.
 pub struct MappingMatcher {
     mappings: MappingsMap,
 }
@@ -40,8 +38,8 @@ impl MappingMatcher {
     }
 }
 
-impl CryptoMatcher for MappingMatcher {
-    fn is_crypto_call(
+impl CallMatcher for MappingMatcher {
+    fn matches(
         &self,
         function_name: &str,
         package: Option<&str>,
@@ -73,7 +71,7 @@ impl CryptoMatcher for MappingMatcher {
     }
 }
 
-/// Pattern-based matcher. Matches against a list of known crypto terms.
+/// Pattern-based matcher. Matches against a list of known terms.
 /// This provides high recall but may have false positives.
 pub struct PatternMatcher {
     patterns: Vec<String>,
@@ -83,14 +81,10 @@ impl PatternMatcher {
     pub fn new(patterns: Vec<String>) -> Self {
         Self { patterns }
     }
-
-    pub fn default_patterns() -> Self {
-        Self::new(patterns::default_patterns())
-    }
 }
 
-impl CryptoMatcher for PatternMatcher {
-    fn is_crypto_call(
+impl CallMatcher for PatternMatcher {
+    fn matches(
         &self,
         function_name: &str,
         package: Option<&str>,
@@ -124,7 +118,7 @@ impl CryptoMatcher for PatternMatcher {
 }
 
 #[derive(Debug, Clone)]
-pub struct CryptoCall {
+pub struct Finding {
     pub file_path: String,
     pub line: usize,
     pub column: usize,
@@ -136,7 +130,7 @@ pub struct CryptoCall {
     pub language: String,
 }
 
-impl CryptoCall {
+impl Finding {
     pub fn full_name(&self) -> String {
         match &self.package {
             Some(pkg) => format!("{}.{}", pkg, self.function_name),
@@ -146,26 +140,26 @@ impl CryptoCall {
 }
 
 #[derive(Debug, Clone)]
-pub struct CryptoConfigField {
+pub struct ConfigField {
     pub field_name: String,
     pub value: Value,
     pub classification_key: Option<String>,
 }
 
 #[derive(Debug, Clone)]
-pub struct CryptoConfig {
+pub struct ConfigFinding {
     pub file_path: String,
     pub line: usize,
     pub column: usize,
     pub struct_type: String,
     pub package: Option<String>,
     pub import_path: Option<String>,
-    pub fields: Vec<CryptoConfigField>,
+    pub fields: Vec<ConfigField>,
     pub raw_text: String,
     pub language: String,
 }
 
-impl CryptoConfig {
+impl ConfigFinding {
     pub fn full_type(&self) -> String {
         match &self.import_path {
             Some(path) => format!("{}.{}", path, self.struct_type),
@@ -180,8 +174,8 @@ impl CryptoConfig {
 #[derive(Debug, Clone, Default)]
 pub struct ScanResult {
     pub file_path: String,
-    pub calls: Vec<CryptoCall>,
-    pub configs: Vec<CryptoConfig>,
+    pub calls: Vec<Finding>,
+    pub configs: Vec<ConfigFinding>,
     pub errors: Vec<String>,
 }
 
@@ -195,11 +189,11 @@ impl ScanResult {
         }
     }
 
-    pub fn add_call(&mut self, call: CryptoCall) {
+    pub fn add_call(&mut self, call: Finding) {
         self.calls.push(call);
     }
 
-    pub fn add_config(&mut self, config: CryptoConfig) {
+    pub fn add_config(&mut self, config: ConfigFinding) {
         self.configs.push(config);
     }
 
@@ -224,7 +218,7 @@ pub type StructFieldsMap = HashMap<String, HashMap<String, String>>;
 
 pub struct Scanner {
     resolver: Resolver,
-    matcher: Box<dyn CryptoMatcher>,
+    matcher: Box<dyn CallMatcher>,
     query_engine: QueryEngine,
     struct_fields: StructFieldsMap,
 }
@@ -233,7 +227,7 @@ impl Scanner {
     pub fn new() -> Self {
         Self {
             resolver: Resolver::new(),
-            matcher: Box::new(PatternMatcher::default_patterns()),
+            matcher: Box::new(PatternMatcher::new(vec![])),
             query_engine: QueryEngine::new(),
             struct_fields: HashMap::new(),
         }
@@ -242,13 +236,13 @@ impl Scanner {
     pub fn with_resolver(resolver: Resolver) -> Self {
         Self {
             resolver,
-            matcher: Box::new(PatternMatcher::default_patterns()),
+            matcher: Box::new(PatternMatcher::new(vec![])),
             query_engine: QueryEngine::new(),
             struct_fields: HashMap::new(),
         }
     }
 
-    pub fn with_matcher<M: CryptoMatcher + 'static>(mut self, matcher: M) -> Self {
+    pub fn with_matcher<M: CallMatcher + 'static>(mut self, matcher: M) -> Self {
         self.matcher = Box::new(matcher);
         self
     }
@@ -369,7 +363,7 @@ impl Scanner {
         // Detect function calls
         if ctx.is_node_category(node.kind(), NodeCategory::CallExpression) {
             if let Some(call) = self.process_call_node(&node, ctx, imports) {
-                if self.is_crypto_call(&call) {
+                if self.is_match(&call) {
                     result.add_call(call);
                 }
             }
@@ -401,11 +395,11 @@ impl Scanner {
         node: &Node<'a>,
         ctx: &Context<'a>,
         imports: &ImportMap,
-    ) -> Option<CryptoConfig> {
+    ) -> Option<ConfigFinding> {
         // Extract struct type
         let (struct_type, package) = self.extract_struct_type(node, ctx)?;
 
-        // Check if this is a crypto-related struct
+        // Check if this is a matching struct type
         let import_path = package.as_ref().and_then(|pkg| imports.resolve(pkg));
         let full_type = match &import_path {
             Some(path) => format!("{path}.{struct_type}"),
@@ -437,7 +431,7 @@ impl Scanner {
         let start = node.start_position();
         let raw_text = ctx.get_node_text(node);
 
-        Some(CryptoConfig {
+        Some(ConfigFinding {
             file_path: ctx.file_path().to_string(),
             line: start.row + 1,
             column: start.column + 1,
@@ -484,7 +478,7 @@ impl Scanner {
         node: &Node<'a>,
         ctx: &Context<'a>,
         struct_type: &str,
-    ) -> Vec<CryptoConfigField> {
+    ) -> Vec<ConfigField> {
         let mut fields = Vec::new();
 
         // Find the literal_value/field_declaration_list node
@@ -547,7 +541,7 @@ impl Scanner {
         node: &Node<'a>,
         ctx: &Context<'a>,
         field_mappings: Option<&HashMap<String, String>>,
-    ) -> Option<CryptoConfigField> {
+    ) -> Option<ConfigField> {
         // Go keyed_element: field_name: value
         // Note: In Go, both key and value are wrapped in literal_element nodes
         let key_node = node.child(0)?;
@@ -570,7 +564,7 @@ impl Scanner {
                 .map(|s| s.to_string())
         });
 
-        Some(CryptoConfigField {
+        Some(ConfigField {
             field_name,
             value,
             classification_key,
@@ -582,7 +576,7 @@ impl Scanner {
         node: &Node<'a>,
         ctx: &Context<'a>,
         imports: &ImportMap,
-    ) -> Option<CryptoCall> {
+    ) -> Option<Finding> {
         let (function_name, package) = self.extract_function_name(node, ctx)?;
         let arguments = self.extract_arguments(node, ctx);
         let raw_text = ctx.get_node_text(node);
@@ -591,7 +585,7 @@ impl Scanner {
 
         let start = node.start_position();
 
-        Some(CryptoCall {
+        Some(Finding {
             file_path: ctx.file_path().to_string(),
             line: start.row + 1, // 1-indexed
             column: start.column + 1,
@@ -689,8 +683,8 @@ impl Scanner {
         result
     }
 
-    fn is_crypto_call(&self, call: &CryptoCall) -> bool {
-        self.matcher.is_crypto_call(
+    fn is_match(&self, call: &Finding) -> bool {
+        self.matcher.matches(
             &call.function_name,
             call.package.as_deref(),
             call.import_path.as_deref(),
@@ -708,6 +702,18 @@ impl Default for Scanner {
 mod tests {
     use super::*;
 
+    fn test_patterns() -> Vec<String> {
+        vec![
+            "pbkdf2".to_string(),
+            "sha256".to_string(),
+            "aes".to_string(),
+            "hmac".to_string(),
+            "hashlib".to_string(),
+            "hashes".to_string(),
+            "pb".to_string(),
+        ]
+    }
+
     fn parse_go(source: &str) -> Tree {
         let mut parser = tree_sitter::Parser::new();
         parser
@@ -718,18 +724,17 @@ mod tests {
 
     #[test]
     fn test_scanner_creation() {
-        let scanner = Scanner::new();
-        // Scanner is created with default pattern matcher
+        let scanner = Scanner::new().with_patterns(test_patterns());
         let source = r#"package main
 func main() { pbkdf2.Key() }"#;
         let tree = parse_go(source);
         let result = scanner.scan_tree(&tree, source.as_bytes(), "test.go", "go");
-        assert_eq!(result.call_count(), 1); // Should detect pbkdf2
+        assert_eq!(result.call_count(), 1);
     }
 
     #[test]
-    fn test_crypto_call_full_name() {
-        let call = CryptoCall {
+    fn test_finding_full_name() {
+        let call = Finding {
             file_path: "test.go".to_string(),
             line: 10,
             column: 5,
@@ -744,8 +749,8 @@ func main() { pbkdf2.Key() }"#;
     }
 
     #[test]
-    fn test_crypto_call_no_package() {
-        let call = CryptoCall {
+    fn test_finding_no_package() {
+        let call = Finding {
             file_path: "test.go".to_string(),
             line: 10,
             column: 5,
@@ -765,7 +770,7 @@ func main() { pbkdf2.Key() }"#;
         assert_eq!(result.call_count(), 0);
         assert!(!result.has_errors());
 
-        result.add_call(CryptoCall {
+        result.add_call(Finding {
             file_path: "test.go".to_string(),
             line: 1,
             column: 1,
@@ -794,7 +799,7 @@ func main() {
 }
 "#;
         let tree = parse_go(source);
-        let scanner = Scanner::new();
+        let scanner = Scanner::new().with_patterns(test_patterns());
         let result = scanner.scan_tree(&tree, source.as_bytes(), "test.go", "go");
 
         assert_eq!(result.call_count(), 1);
@@ -815,14 +820,14 @@ func main() {
 }
 "#;
         let tree = parse_go(source);
-        let scanner = Scanner::new();
+        let scanner = Scanner::new().with_patterns(test_patterns());
         let result = scanner.scan_tree(&tree, source.as_bytes(), "test.go", "go");
 
         assert_eq!(result.call_count(), 3);
     }
 
     #[test]
-    fn test_scan_ignores_non_crypto() {
+    fn test_scan_ignores_non_matching() {
         let source = r#"
 package main
 
@@ -832,7 +837,7 @@ func main() {
 }
 "#;
         let tree = parse_go(source);
-        let scanner = Scanner::new();
+        let scanner = Scanner::new().with_patterns(test_patterns());
         let result = scanner.scan_tree(&tree, source.as_bytes(), "test.go", "go");
 
         assert_eq!(result.call_count(), 0);
@@ -848,7 +853,7 @@ func main() {
 }
 "#;
         let tree = parse_go(source);
-        let scanner = Scanner::new();
+        let scanner = Scanner::new().with_patterns(test_patterns());
         let result = scanner.scan_tree(&tree, source.as_bytes(), "test.go", "go");
 
         assert_eq!(result.call_count(), 1);
@@ -898,7 +903,7 @@ func main() {
 }
 "#;
         let tree = parse_go(source);
-        let scanner = Scanner::new();
+        let scanner = Scanner::new().with_patterns(test_patterns());
         let result = scanner.scan_tree(&tree, source.as_bytes(), "test.go", "go");
 
         assert_eq!(result.call_count(), 1);
@@ -922,7 +927,7 @@ func main() {
 }
 "#;
         let tree = parse_go(source);
-        let scanner = Scanner::new();
+        let scanner = Scanner::new().with_patterns(test_patterns());
         let result = scanner.scan_tree(&tree, source.as_bytes(), "test.go", "go");
 
         assert_eq!(result.call_count(), 1);
@@ -950,7 +955,7 @@ func main() {
 }
 "#;
         let tree = parse_go(source);
-        let scanner = Scanner::new();
+        let scanner = Scanner::new().with_patterns(test_patterns());
         let result = scanner.scan_tree(&tree, source.as_bytes(), "test.go", "go");
 
         assert_eq!(result.call_count(), 2);
@@ -986,7 +991,7 @@ key = hashlib.pbkdf2_hmac('sha256', password, salt, 100000)
             .unwrap();
         let tree = parser.parse(source, None).unwrap();
 
-        let scanner = Scanner::new();
+        let scanner = Scanner::new().with_patterns(test_patterns());
         let result = scanner.scan_tree(&tree, source.as_bytes(), "test.py", "python");
 
         assert_eq!(result.call_count(), 1);
@@ -1008,7 +1013,7 @@ h = hashes.SHA256()
             .unwrap();
         let tree = parser.parse(source, None).unwrap();
 
-        let scanner = Scanner::new();
+        let scanner = Scanner::new().with_patterns(test_patterns());
         let result = scanner.scan_tree(&tree, source.as_bytes(), "test.py", "python");
 
         assert_eq!(result.call_count(), 1);

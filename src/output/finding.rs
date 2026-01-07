@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use crate::classifier::RulesClassifier;
 use crate::engine::Value;
-use crate::scanner::{CryptoCall, CryptoConfig};
+use crate::scanner::{ConfigFinding as ScannerConfigFinding, Finding as ScannerFinding};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Finding {
@@ -52,7 +52,7 @@ pub struct ConfigFieldValue {
 }
 
 impl Finding {
-    pub fn from_crypto_call(call: &CryptoCall, classifier: &RulesClassifier) -> Self {
+    pub fn from_scanner_finding(call: &ScannerFinding, classifier: &RulesClassifier) -> Self {
         let classification = crate::classifier::classify_call(call, classifier);
 
         let parameters = call
@@ -93,7 +93,7 @@ impl Finding {
 }
 
 impl ConfigFinding {
-    pub fn from_crypto_config(config: &CryptoConfig) -> Self {
+    pub fn from_scanner_config(config: &ScannerConfigFinding) -> Self {
         let fields = config
             .fields
             .iter()

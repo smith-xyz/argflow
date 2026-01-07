@@ -1,8 +1,8 @@
 //! Rust-specific dependency discovery tests
 
-use crypto_extractor_core::discovery::cache::DiscoveryCache;
-use crypto_extractor_core::discovery::languages::rust::RustPackageLoader;
-use crypto_extractor_core::discovery::loader::PackageLoader;
+use argflow::discovery::cache::DiscoveryCache;
+use argflow::discovery::languages::rust::RustPackageLoader;
+use argflow::discovery::loader::PackageLoader;
 
 #[test]
 fn test_rust_dependency_discovery() {

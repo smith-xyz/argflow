@@ -1,6 +1,6 @@
 //! Rust binary resolution tests
 
-use super::test_utils::{get_arg_expression, get_first_arg_int, is_arg_unresolved, scan_rust};
+use super::test_utils::{get_first_arg_int, is_arg_unresolved, scan_rust};
 
 // =============================================================================
 // Addition Tests
@@ -282,11 +282,12 @@ fn main() { pbkdf2::derive(alg, 100000 + 10000, salt, password, &mut key); }
 }
 
 // =============================================================================
-// Partial Resolution Tests
+// Binary Expression with Identifier Resolution
+// Binary strategy now properly resolves identifiers via the Resolver
 // =============================================================================
 
 #[test]
-fn test_unresolved_left_operand() {
+fn test_identifier_left_operand_resolved() {
     let result = scan_rust(
         r#"
 use ring::pbkdf2;
@@ -296,19 +297,16 @@ fn main() {
 }
 "#,
     );
-    assert!(
-        is_arg_unresolved(&result, 1),
-        "Identifier needs identifier strategy"
-    );
+    // Local variable resolves via identifier strategy
     assert_eq!(
-        get_arg_expression(&result, 1),
-        Some("base + 10000".to_string()),
-        "Expression preserved"
+        get_first_arg_int(&result, 1),
+        Some(110000),
+        "base (100000) + 10000 = 110000"
     );
 }
 
 #[test]
-fn test_unresolved_right_operand() {
+fn test_identifier_right_operand_resolved() {
     let result = scan_rust(
         r#"
 use ring::pbkdf2;
@@ -318,14 +316,11 @@ fn main() {
 }
 "#,
     );
-    assert!(
-        is_arg_unresolved(&result, 1),
-        "Identifier needs identifier strategy"
-    );
+    // Local variable resolves via identifier strategy
     assert_eq!(
-        get_arg_expression(&result, 1),
-        Some("100000 + extra".to_string()),
-        "Expression preserved"
+        get_first_arg_int(&result, 1),
+        Some(110000),
+        "100000 + extra (10000) = 110000"
     );
 }
 

@@ -8,7 +8,6 @@ pub enum OutputFormat {
     Cbom,
 }
 
-// make this a shared item somewhere else
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, ValueEnum)]
 pub enum Language {
     Go,
@@ -19,12 +18,20 @@ pub enum Language {
 }
 
 #[derive(Parser, Debug)]
-#[command(name = "crypto-extractor")]
-#[command(about = "Cryptographic parameter extractor", long_about = None)]
+#[command(name = "argflow")]
+#[command(about = "Argument flow analyzer - trace where function arguments come from", long_about = None)]
 pub struct Args {
     /// Path to file or directory to analyze
     #[arg(long, value_name = "PATH")]
     pub path: PathBuf,
+
+    /// Preset to use (e.g., crypto, tls). Can be specified multiple times.
+    #[arg(long, value_name = "PRESET")]
+    pub preset: Vec<String>,
+
+    /// Custom rules file (JSON format)
+    #[arg(long, value_name = "FILE")]
+    pub rules: Option<PathBuf>,
 
     /// Output file path (prints to stdout if not specified)
     #[arg(short = 'O', long, value_name = "FILE")]
@@ -54,6 +61,11 @@ pub struct Args {
 impl Args {
     pub fn validate(&self) -> Result<()> {
         validate_path(&self.path)?;
+        if let Some(ref rules_path) = self.rules {
+            if !rules_path.exists() {
+                anyhow::bail!("Rules file does not exist: {}", rules_path.display());
+            }
+        }
         Ok(())
     }
 }
@@ -97,7 +109,7 @@ impl Language {
         }
     }
 
-    pub fn classifier_rules_name(&self) -> &'static str {
+    pub fn preset_language_name(&self) -> &'static str {
         match self {
             Language::Go => "go",
             Language::Python => "python",
@@ -185,12 +197,12 @@ mod tests {
     }
 
     #[test]
-    fn test_language_classifier_rules_name() {
-        assert_eq!(Language::Go.classifier_rules_name(), "go");
-        assert_eq!(Language::Python.classifier_rules_name(), "python");
-        assert_eq!(Language::Rust.classifier_rules_name(), "rust");
-        assert_eq!(Language::Javascript.classifier_rules_name(), "javascript");
-        assert_eq!(Language::Typescript.classifier_rules_name(), "javascript");
+    fn test_language_preset_language_name() {
+        assert_eq!(Language::Go.preset_language_name(), "go");
+        assert_eq!(Language::Python.preset_language_name(), "python");
+        assert_eq!(Language::Rust.preset_language_name(), "rust");
+        assert_eq!(Language::Javascript.preset_language_name(), "javascript");
+        assert_eq!(Language::Typescript.preset_language_name(), "javascript");
     }
 
     #[test]
@@ -237,6 +249,8 @@ mod tests {
 
         let args = Args {
             path: file_path,
+            preset: vec![],
+            rules: None,
             output_file: None,
             format: OutputFormat::Json,
             language: Some(Language::Go),
@@ -249,13 +263,15 @@ mod tests {
     }
 
     #[test]
-    fn test_args_validate_invalid_language() {
+    fn test_args_validate_with_preset() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.go");
         fs::write(&file_path, "package main").unwrap();
 
         let args = Args {
             path: file_path,
+            preset: vec!["crypto".to_string()],
+            rules: None,
             output_file: None,
             format: OutputFormat::Json,
             language: Some(Language::Go),
@@ -271,6 +287,8 @@ mod tests {
     fn test_args_validate_invalid_path() {
         let args = Args {
             path: PathBuf::from("/nonexistent/path"),
+            preset: vec![],
+            rules: None,
             output_file: None,
             format: OutputFormat::Json,
             language: None,
@@ -286,6 +304,8 @@ mod tests {
     fn test_verbose_flag_incremental() {
         let args = Args {
             path: PathBuf::from("."),
+            preset: vec![],
+            rules: None,
             output_file: None,
             format: OutputFormat::Json,
             language: None,

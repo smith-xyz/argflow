@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use crate::cli::Language;
-use crate::discovery::filter::CryptoFileFilter;
+use crate::discovery::filter::ImportFileFilter;
 use crate::discovery::loader::PackageLoader;
 
 pub mod go;
@@ -9,15 +9,15 @@ pub mod javascript;
 pub mod python;
 pub mod rust;
 
-pub use go::{GoCryptoFilter, GoPackageLoader};
-pub use javascript::{JavaScriptCryptoFilter, JavaScriptPackageLoader};
-pub use python::{PythonCryptoFilter, PythonPackageLoader};
-pub use rust::{RustCryptoFilter, RustPackageLoader};
+pub use go::{GoImportFilter, GoPackageLoader};
+pub use javascript::{JavaScriptImportFilter, JavaScriptPackageLoader};
+pub use python::{PythonImportFilter, PythonPackageLoader};
+pub use rust::{RustImportFilter, RustPackageLoader};
 
 pub trait LanguageModule: Send + Sync {
     fn create_loader(&self) -> Box<dyn PackageLoader>;
 
-    fn create_filter(&self) -> Box<dyn CryptoFileFilter>;
+    fn create_filter(&self) -> Box<dyn ImportFileFilter>;
 
     fn language(&self) -> Language;
 

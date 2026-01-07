@@ -6,16 +6,16 @@ pub use rules::{Classifier, RulesClassifier};
 
 pub use crate::error::ClassifierError;
 
-use crate::scanner::CryptoCall;
+use crate::scanner::Finding;
 
 #[derive(Debug, Clone)]
 pub struct ClassifiedCall {
-    pub call: CryptoCall,
+    pub call: Finding,
     pub classification: Classification,
 }
 
 impl ClassifiedCall {
-    pub fn new(call: CryptoCall, classification: Classification) -> Self {
+    pub fn new(call: Finding, classification: Classification) -> Self {
         Self {
             call,
             classification,
@@ -27,7 +27,7 @@ impl ClassifiedCall {
     }
 }
 
-pub fn classify_call<C: Classifier>(call: &CryptoCall, classifier: &C) -> Classification {
+pub fn classify_call<C: Classifier>(call: &Finding, classifier: &C) -> Classification {
     classifier.lookup_with_fallback(
         call.import_path.as_deref(),
         call.package.as_deref().unwrap_or(""),
@@ -44,8 +44,8 @@ mod integration_tests {
         package: Option<&str>,
         function: &str,
         language: &str,
-    ) -> CryptoCall {
-        CryptoCall {
+    ) -> Finding {
+        Finding {
             file_path: format!("test.{language}"),
             line: 1,
             column: 1,

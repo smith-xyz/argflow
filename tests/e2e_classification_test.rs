@@ -1,5 +1,5 @@
-use crypto_extractor_core::classifier::{classify_call, RulesClassifier};
-use crypto_extractor_core::scanner::Scanner;
+use argflow::classifier::{classify_call, RulesClassifier};
+use argflow::scanner::Scanner;
 
 fn parse_go(source: &str) -> tree_sitter::Tree {
     let mut parser = tree_sitter::Parser::new();
@@ -17,6 +17,12 @@ fn parse_python(source: &str) -> tree_sitter::Tree {
     parser.parse(source, None).unwrap()
 }
 
+fn create_scanner_with_mappings() -> (Scanner, RulesClassifier) {
+    let classifier = RulesClassifier::from_bundled().unwrap();
+    let scanner = Scanner::with_mappings(classifier.get_mappings().clone());
+    (scanner, classifier)
+}
+
 #[test]
 fn test_e2e_go_pbkdf2_classification() {
     let source = r#"
@@ -30,8 +36,7 @@ func main() {
 "#;
 
     let tree = parse_go(source);
-    let scanner = Scanner::new();
-    let classifier = RulesClassifier::from_bundled().unwrap();
+    let (scanner, classifier) = create_scanner_with_mappings();
 
     let result = scanner.scan_tree(&tree, source.as_bytes(), "test.go", "go");
 
@@ -64,8 +69,7 @@ func main() {
 "#;
 
     let tree = parse_go(source);
-    let scanner = Scanner::new();
-    let classifier = RulesClassifier::from_bundled().unwrap();
+    let (scanner, classifier) = create_scanner_with_mappings();
 
     let result = scanner.scan_tree(&tree, source.as_bytes(), "test.go", "go");
 
@@ -93,8 +97,7 @@ func main() {
 "#;
 
     let tree = parse_go(source);
-    let scanner = Scanner::new();
-    let classifier = RulesClassifier::from_bundled().unwrap();
+    let (scanner, classifier) = create_scanner_with_mappings();
 
     let result = scanner.scan_tree(&tree, source.as_bytes(), "test.go", "go");
 
@@ -122,7 +125,7 @@ func main() {
 "#;
 
     let tree = parse_go(source);
-    let scanner = Scanner::new();
+    let (scanner, _classifier) = create_scanner_with_mappings();
 
     let result = scanner.scan_tree(&tree, source.as_bytes(), "test.go", "go");
 
@@ -151,8 +154,7 @@ key = hashlib.pbkdf2_hmac('sha256', password, salt, 100000)
 "#;
 
     let tree = parse_python(source);
-    let scanner = Scanner::new();
-    let classifier = RulesClassifier::from_bundled().unwrap();
+    let (scanner, classifier) = create_scanner_with_mappings();
 
     let result = scanner.scan_tree(&tree, source.as_bytes(), "test.py", "python");
 
@@ -176,7 +178,7 @@ key = hashlib.pbkdf2_hmac('sha256', password, salt, 100000, dklen=32)
 "#;
 
     let tree = parse_python(source);
-    let scanner = Scanner::new();
+    let (scanner, _classifier) = create_scanner_with_mappings();
 
     let result = scanner.scan_tree(&tree, source.as_bytes(), "test.py", "python");
 
@@ -208,12 +210,11 @@ func main() {
 "#;
 
     let tree = parse_go(source);
-    let scanner = Scanner::new();
+    let (scanner, _classifier) = create_scanner_with_mappings();
 
     let result = scanner.scan_tree(&tree, source.as_bytes(), "test.go", "go");
 
-    // This call won't be detected as crypto because it doesn't match patterns
-    // (PatternMatcher filters it out before we get here)
+    // This call won't be detected as crypto because it doesn't have a mapping
     assert_eq!(result.call_count(), 0);
 }
 
@@ -234,8 +235,7 @@ func main() {
 "#;
 
     let tree = parse_go(source);
-    let scanner = Scanner::new();
-    let classifier = RulesClassifier::from_bundled().unwrap();
+    let (scanner, classifier) = create_scanner_with_mappings();
 
     let result = scanner.scan_tree(&tree, source.as_bytes(), "test.go", "go");
 

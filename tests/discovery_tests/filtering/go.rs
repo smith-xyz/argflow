@@ -5,20 +5,20 @@ use crate::discovery_tests::user_code::test_utils::{
     assert_file_found, assert_file_not_found, get_file_names,
 };
 use crate::fixtures::get_test_fixture_path;
-use crypto_extractor_core::discovery::languages::go::{GoCryptoFilter, GoPackageLoader};
-use crypto_extractor_core::discovery::loader::PackageLoader;
+use argflow::discovery::languages::go::{GoImportFilter, GoPackageLoader};
+use argflow::discovery::loader::PackageLoader;
 
 #[test]
 fn test_go_crypto_filter() {
     let test_app_path = get_test_fixture_path("go", Some("discovery-test-app"));
     let loader = GoPackageLoader;
-    let filter = GoCryptoFilter;
+    let filter = GoImportFilter::from_bundled().expect("Failed to create filter");
 
     let all_files = loader
         .load_user_code(&test_app_path)
         .expect("Failed to load user code");
 
-    let crypto_files = filter_crypto_files(all_files, &filter);
+    let crypto_files = filter_matching_files(all_files, &filter);
 
     assert!(!crypto_files.is_empty(), "Should find crypto files");
 
@@ -34,13 +34,13 @@ fn test_go_crypto_filter() {
 fn test_go_crypto_filter_exact_count() {
     let test_app_path = get_test_fixture_path("go", Some("discovery-test-app"));
     let loader = GoPackageLoader;
-    let filter = GoCryptoFilter;
+    let filter = GoImportFilter::from_bundled().expect("Failed to create filter");
 
     let all_files = loader
         .load_user_code(&test_app_path)
         .expect("Failed to load user code");
 
-    let crypto_files = filter_crypto_files(all_files, &filter);
+    let crypto_files = filter_matching_files(all_files, &filter);
 
     assert_eq!(
         crypto_files.len(),

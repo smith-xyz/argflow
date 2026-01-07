@@ -195,16 +195,24 @@ impl RulesClassifier {
     }
 
     pub fn from_bundled() -> Result<Self, ClassifierError> {
-        debug!("loading bundled classifier rules");
+        debug!("loading bundled classifier rules from crypto preset");
+        let preset_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("presets")
+            .join("crypto");
+        Self::from_preset_path(&preset_dir)
+    }
+
+    pub fn from_preset_path(preset_dir: &Path) -> Result<Self, ClassifierError> {
+        debug!(path = %preset_dir.display(), "loading classifier rules from preset");
         let mut classifier = Self::new();
 
-        let rules_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("classifier-rules");
-        trace!(path = %rules_dir.display(), "rules directory");
-
-        classifier.load_classifications(rules_dir.join("classifications.json"))?;
+        let classifications_path = preset_dir.join("classifications.json");
+        if classifications_path.exists() {
+            classifier.load_classifications(&classifications_path)?;
+        }
 
         for lang in &["go", "python", "rust", "javascript"] {
-            let mappings_path = rules_dir.join(lang).join("mappings.json");
+            let mappings_path = preset_dir.join(lang).join("mappings.json");
             if mappings_path.exists() {
                 classifier.load_mappings(&mappings_path)?;
             }
@@ -213,8 +221,15 @@ impl RulesClassifier {
         debug!(
             classifications = classifier.classification_count(),
             mappings = classifier.mapping_count(),
-            "bundled rules loaded"
+            "preset rules loaded"
         );
+        Ok(classifier)
+    }
+
+    pub fn from_file(path: &Path) -> Result<Self, ClassifierError> {
+        debug!(path = %path.display(), "loading classifier rules from file");
+        let mut classifier = Self::new();
+        classifier.load_user_rules(path)?;
         Ok(classifier)
     }
 
@@ -222,11 +237,16 @@ impl RulesClassifier {
         debug!(language, "loading bundled classifier rules for language");
         let mut classifier = Self::new();
 
-        let rules_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("classifier-rules");
+        let preset_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("presets")
+            .join("crypto");
 
-        classifier.load_classifications(rules_dir.join("classifications.json"))?;
+        let classifications_path = preset_dir.join("classifications.json");
+        if classifications_path.exists() {
+            classifier.load_classifications(&classifications_path)?;
+        }
 
-        let mappings_path = rules_dir.join(language).join("mappings.json");
+        let mappings_path = preset_dir.join(language).join("mappings.json");
         if mappings_path.exists() {
             classifier.load_mappings(mappings_path)?;
         }

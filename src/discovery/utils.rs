@@ -68,9 +68,11 @@ pub fn load_stdlib_from_mappings(
     language: Language,
     known_stdlib: &[&str],
 ) -> Result<HashSet<String>, LoadError> {
-    let rules_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("classifier-rules");
+    let rules_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("presets")
+        .join("crypto");
     let mappings_path = rules_dir
-        .join(language.classifier_rules_name())
+        .join(language.preset_language_name())
         .join("mappings.json");
 
     if !mappings_path.exists() {

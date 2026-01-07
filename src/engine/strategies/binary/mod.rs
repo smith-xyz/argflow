@@ -1,9 +1,9 @@
-use crate::engine::{
-    BinaryOp, Context, Language, NodeCategory, Strategy, UnaryOp, UnresolvedSource, Value,
-};
+use crate::engine::{BinaryOp, Context, NodeCategory, Resolver, Strategy, UnresolvedSource, Value};
 use tree_sitter::Node;
 
-pub struct BinaryStrategy;
+pub struct BinaryStrategy {
+    resolver: Option<Resolver>,
+}
 
 impl Default for BinaryStrategy {
     fn default() -> Self {
@@ -13,7 +13,13 @@ impl Default for BinaryStrategy {
 
 impl BinaryStrategy {
     pub fn new() -> Self {
-        Self
+        Self { resolver: None }
+    }
+
+    pub fn with_resolver(resolver: Resolver) -> Self {
+        Self {
+            resolver: Some(resolver),
+        }
     }
 
     fn get_operator<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Option<String> {
@@ -65,154 +71,16 @@ impl BinaryStrategy {
     }
 
     fn resolve_operand<'a>(&self, operand: &Node<'a>, ctx: &Context<'a>) -> Value {
-        let kind = operand.kind();
-
-        if ctx.is_node_category(kind, NodeCategory::IntegerLiteral) {
-            let text = ctx.get_node_text(operand);
-            if let Some(value) = ctx.parse_int_literal(&text) {
-                return Value::resolved_int(value);
-            }
+        if let Some(ref resolver) = self.resolver {
+            return resolver.resolve(operand, ctx);
         }
-
-        if ctx.is_node_category(kind, NodeCategory::FloatLiteral) {
-            let text = ctx.get_node_text(operand).replace('_', "");
-            if let Ok(value) = text.parse::<f64>() {
-                if value.fract() == 0.0 && value >= i64::MIN as f64 && value <= i64::MAX as f64 {
-                    return Value::resolved_int(value as i64);
-                }
-            }
-        }
-
-        if ctx.is_node_category(kind, NodeCategory::BooleanLiteral) {
-            return self.resolve_boolean(operand, ctx);
-        }
-
-        if ctx.is_node_category(kind, NodeCategory::UnaryExpression) {
-            return self.resolve_unary(operand, ctx);
-        }
-
-        if ctx.is_node_category(kind, NodeCategory::BinaryExpression) {
-            return self.resolve(operand, ctx);
-        }
-
-        if kind == "parenthesized_expression" {
-            if let Some(inner) = operand.named_child(0) {
-                return self.resolve_operand(&inner, ctx);
-            }
-        }
-
-        Value::partial_expression(ctx.get_node_text(operand))
-    }
-
-    fn resolve_boolean<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Value {
-        let kind = node.kind();
-
-        if kind.eq_ignore_ascii_case("true") {
-            return Value::resolved_int(1);
-        }
-
-        if kind.eq_ignore_ascii_case("false") {
-            return Value::resolved_int(0);
-        }
-
-        if kind == "boolean_literal" {
-            let text = ctx.get_node_text(node);
-            if text.eq_ignore_ascii_case("true") {
-                return Value::resolved_int(1);
-            } else if text.eq_ignore_ascii_case("false") {
-                return Value::resolved_int(0);
-            }
-        }
-
-        Value::unextractable(UnresolvedSource::Unknown)
-    }
-
-    fn resolve_unary<'a>(&self, node: &Node<'a>, ctx: &Context<'a>) -> Value {
-        let (op_text, operand) = match self.get_unary_parts(node, ctx) {
-            Some(result) => result,
-            None => return Value::unextractable(UnresolvedSource::Unknown),
-        };
-
-        let operand_value = self.resolve_operand(&operand, ctx);
-        Value::unary_op(&op_text, &operand_value)
-    }
-
-    fn get_unary_parts<'a>(
-        &self,
-        node: &Node<'a>,
-        ctx: &Context<'a>,
-    ) -> Option<(String, Node<'a>)> {
-        let lang = ctx.node_types()?.language();
-
-        match lang {
-            Language::Go => {
-                let operand = node.child_by_field_name("operand")?;
-                let mut cursor = node.walk();
-                for child in node.children(&mut cursor) {
-                    if !child.is_named() {
-                        let op_text = ctx.get_node_text(&child);
-                        if is_unary_operator(&op_text) {
-                            return Some((op_text, operand));
-                        }
-                    }
-                }
-                None
-            }
-            Language::Python => {
-                if node.kind() == "not_operator" {
-                    let operand = node.child_by_field_name("argument")?;
-                    return Some(("!".to_string(), operand));
-                }
-                if node.kind() == "unary_operator" {
-                    let operand = node.child_by_field_name("argument")?;
-                    let op = node.child_by_field_name("operator")?;
-                    return Some((ctx.get_node_text(&op), operand));
-                }
-                None
-            }
-            Language::Rust => {
-                if node.kind() == "reference_expression" || node.kind() == "dereference_expression"
-                {
-                    let operand = node.child_by_field_name("value")?;
-                    let op = if node.kind() == "reference_expression" {
-                        "&"
-                    } else {
-                        "*"
-                    };
-                    return Some((op.to_string(), operand));
-                }
-                if node.kind() == "unary_expression" {
-                    let operand = node.child(1)?;
-                    if let Some(op_node) = node.child(0) {
-                        if !op_node.is_named() {
-                            return Some((ctx.get_node_text(&op_node), operand));
-                        }
-                    }
-                }
-                None
-            }
-            Language::JavaScript | Language::TypeScript => {
-                let operand = node.child_by_field_name("argument")?;
-                let op = node.child_by_field_name("operator")?;
-                Some((ctx.get_node_text(&op), operand))
-            }
-            Language::C | Language::Cpp | Language::Java => {
-                let operand = node
-                    .child_by_field_name("operand")
-                    .or_else(|| node.child_by_field_name("argument"))?;
-                let op = node.child_by_field_name("operator")?;
-                Some((ctx.get_node_text(&op), operand))
-            }
-        }
+        let resolver = Resolver::new();
+        resolver.resolve(operand, ctx)
     }
 }
 
 fn is_binary_operator(s: &str) -> bool {
     BinaryOp::parse(s).is_some()
-}
-
-fn is_unary_operator(s: &str) -> bool {
-    UnaryOp::parse(s).is_some() || matches!(s, "&" | "*" | "not")
 }
 
 impl Strategy for BinaryStrategy {
@@ -928,7 +796,8 @@ mod tests {
         let value = strategy.resolve(&node, &ctx);
 
         assert!(!value.is_resolved);
-        assert_eq!(value.expression, "iterations + 10000");
+        // Identifier resolution now properly reports why it couldn't be resolved
+        assert_eq!(value.expression, "<identifier_not_found> + 10000");
     }
 
     #[test]
@@ -942,7 +811,8 @@ mod tests {
         let value = strategy.resolve(&node, &ctx);
 
         assert!(!value.is_resolved);
-        assert_eq!(value.expression, "100000 + extra");
+        // Identifier resolution now properly reports why it couldn't be resolved
+        assert_eq!(value.expression, "100000 + <identifier_not_found>");
     }
 
     // =============================================================================

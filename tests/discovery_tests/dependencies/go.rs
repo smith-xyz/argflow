@@ -3,10 +3,10 @@
 use crate::fixtures::get_test_fixture_path;
 
 use super::test_utils::*;
-use crypto_extractor_core::discovery::cache::DiscoveryCache;
-use crypto_extractor_core::discovery::languages::go::GoPackageLoader;
-use crypto_extractor_core::discovery::loader::PackageLoader;
-use crypto_extractor_core::discovery::SourceType;
+use argflow::discovery::cache::DiscoveryCache;
+use argflow::discovery::languages::go::GoPackageLoader;
+use argflow::discovery::loader::PackageLoader;
+use argflow::discovery::SourceType;
 
 #[test]
 fn test_go_dependency_discovery() {

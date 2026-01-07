@@ -5,9 +5,9 @@ use crate::discovery_tests::dependencies::test_utils::{
     get_dependency_files, get_stdlib_files, get_user_code_files,
 };
 use crate::fixtures::get_test_fixture_path;
-use crypto_extractor_core::discovery::cache::DiscoveryCache;
-use crypto_extractor_core::discovery::languages::go::GoPackageLoader;
-use crypto_extractor_core::discovery::loader::PackageLoader;
+use argflow::discovery::cache::DiscoveryCache;
+use argflow::discovery::languages::go::GoPackageLoader;
+use argflow::discovery::loader::PackageLoader;
 
 #[test]
 fn test_go_source_type_tagging() {
@@ -29,7 +29,7 @@ fn test_go_source_type_tagging() {
     for file in &user_files {
         assert_eq!(
             file.language,
-            crypto_extractor_core::cli::Language::Go,
+            argflow::cli::Language::Go,
             "All files should be tagged with correct language"
         );
     }

@@ -1,9 +1,9 @@
 //! JavaScript-specific cache tests
 
 use super::test_utils::*;
-use crypto_extractor_core::discovery::cache::DiscoveryCache;
-use crypto_extractor_core::discovery::languages::javascript::JavaScriptPackageLoader;
-use crypto_extractor_core::discovery::loader::PackageLoader;
+use argflow::discovery::cache::DiscoveryCache;
+use argflow::discovery::languages::javascript::JavaScriptPackageLoader;
+use argflow::discovery::loader::PackageLoader;
 
 #[test]
 fn test_javascript_cache_functionality() {

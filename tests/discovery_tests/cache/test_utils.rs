@@ -1,6 +1,6 @@
 //! Shared test utilities for cache tests
 
-use crypto_extractor_core::discovery::SourceFile;
+use argflow::discovery::SourceFile;
 use std::collections::HashSet;
 
 pub fn assert_cache_consistency(files1: &[SourceFile], files2: &[SourceFile]) {

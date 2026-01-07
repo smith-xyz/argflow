@@ -1,6 +1,8 @@
 //! Shared test utilities for composite resolution tests
 
-use crypto_extractor_core::scanner::{default_patterns, ScanResult, Scanner};
+use argflow::scanner::{ScanResult, Scanner};
+
+use crate::fixtures;
 
 pub fn parse_go(source: &str) -> tree_sitter::Tree {
     let mut parser = tree_sitter::Parser::new();
@@ -35,7 +37,7 @@ pub fn parse_javascript(source: &str) -> tree_sitter::Tree {
 }
 
 fn create_scanner() -> Scanner {
-    Scanner::new().with_patterns(default_patterns())
+    Scanner::new().with_patterns(fixtures::test_patterns())
 }
 
 pub fn scan_go(source: &str) -> ScanResult {

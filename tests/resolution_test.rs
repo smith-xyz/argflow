@@ -4,8 +4,9 @@
 //!
 //! ## Structure
 //! - `literal_resolution` - Tests for LiteralStrategy (integers, strings, booleans, nil)
-//! - (future) `identifier_resolution` - Tests for IdentifierStrategy
-//! - (future) `binary_resolution` - Tests for BinaryStrategy
-//! - (future) `call_resolution` - Tests for CallStrategy
+//! - `identifier_resolution` - Tests for IdentifierStrategy
+//! - `binary_resolution` - Tests for BinaryStrategy
+//! - `call_resolution` - Tests for CallStrategy
 
+mod fixtures;
 mod resolution_strategy_tests;

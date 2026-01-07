@@ -553,11 +553,12 @@ func main() { aes.NewCipher(make([]byte, 1 << 5)) }
 }
 
 // =============================================================================
-// Partial Resolution Tests
+// Binary Expression with Identifier Resolution
+// Binary strategy now properly resolves identifiers via the Resolver
 // =============================================================================
 
 #[test]
-fn test_unresolved_left_operand() {
+fn test_identifier_left_operand_resolved() {
     let result = scan_go(
         r#"
 package main
@@ -566,19 +567,16 @@ var base = 100000
 func main() { pbkdf2.Key(p, s, base + 10000, 32, h) }
 "#,
     );
-    assert!(
-        is_arg_unresolved(&result, 2),
-        "Identifier needs identifier strategy"
-    );
+    // File-level var resolves via identifier strategy
     assert_eq!(
-        get_arg_expression(&result, 2),
-        Some("base + 10000".to_string()),
-        "Expression preserved"
+        get_first_arg_int(&result, 2),
+        Some(110000),
+        "base (100000) + 10000 = 110000"
     );
 }
 
 #[test]
-fn test_unresolved_right_operand() {
+fn test_identifier_right_operand_resolved() {
     let result = scan_go(
         r#"
 package main
@@ -587,19 +585,16 @@ var extra = 10000
 func main() { pbkdf2.Key(p, s, 100000 + extra, 32, h) }
 "#,
     );
-    assert!(
-        is_arg_unresolved(&result, 2),
-        "Identifier needs identifier strategy"
-    );
+    // File-level var resolves via identifier strategy
     assert_eq!(
-        get_arg_expression(&result, 2),
-        Some("100000 + extra".to_string()),
-        "Expression preserved"
+        get_first_arg_int(&result, 2),
+        Some(110000),
+        "100000 + extra (10000) = 110000"
     );
 }
 
 #[test]
-fn test_both_operands_unresolved() {
+fn test_both_identifier_operands_resolved() {
     let result = scan_go(
         r#"
 package main
@@ -609,11 +604,11 @@ var extra = 10000
 func main() { pbkdf2.Key(p, s, base + extra, 32, h) }
 "#,
     );
-    assert!(is_arg_unresolved(&result, 2), "Both identifiers unresolved");
+    // Both file-level vars resolve via identifier strategy
     assert_eq!(
-        get_arg_expression(&result, 2),
-        Some("base + extra".to_string()),
-        "Expression preserved"
+        get_first_arg_int(&result, 2),
+        Some(110000),
+        "base (100000) + extra (10000) = 110000"
     );
 }
 

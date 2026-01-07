@@ -56,6 +56,7 @@ pub enum NodeCategory {
     IndexExpression,
     ArrayLiteral,
     StructLiteral,
+    ParenthesizedExpression,
     FunctionDeclaration,
     VariableDeclaration,
     ConstantDeclaration,
@@ -102,6 +103,7 @@ impl NodeTypes {
             NodeCategory::IndexExpression => self.index_expression_types(),
             NodeCategory::ArrayLiteral => self.array_literal_types(),
             NodeCategory::StructLiteral => self.struct_literal_types(),
+            NodeCategory::ParenthesizedExpression => self.parenthesized_expression_types(),
             NodeCategory::FunctionDeclaration => self.function_declaration_types(),
             NodeCategory::VariableDeclaration => self.variable_declaration_types(),
             NodeCategory::ConstantDeclaration => self.constant_declaration_types(),
@@ -296,6 +298,11 @@ impl NodeTypes {
             Language::C | Language::Cpp => ["initializer_list"].into_iter().collect(),
             Language::Java => ["object_creation_expression"].into_iter().collect(),
         }
+    }
+
+    fn parenthesized_expression_types(&self) -> HashSet<&'static str> {
+        // Same across all tree-sitter grammars
+        ["parenthesized_expression"].into_iter().collect()
     }
 
     fn function_declaration_types(&self) -> HashSet<&'static str> {
